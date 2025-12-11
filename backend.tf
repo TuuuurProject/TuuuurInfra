@@ -5,6 +5,10 @@ module "backend_mig" {
   subnet = module.snet_backend.object_id
   tags   = ["backend"]
   port   = 8080
+  port_name = "http"
+  machine_type = "e2-medium"
+  image = "ubuntu-os-cloud/ubuntu-2204-lts"
+  assign_public_ip = false
   min_size = 1
   max_size = 10
   service_account_email = module.sa_app.iam_email

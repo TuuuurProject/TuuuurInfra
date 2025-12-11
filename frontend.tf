@@ -5,6 +5,9 @@ module "frontend_mig" {
   subnet = module.snet_frontend.object_id
   tags   = ["frontend"]
   port   = 80
+  port_name = "http"
+  machine_type = "e2-medium"
+  image = "ubuntu-os-cloud/ubuntu-2204-lts"
   min_size = 2
   max_size = 10
   assign_public_ip = true

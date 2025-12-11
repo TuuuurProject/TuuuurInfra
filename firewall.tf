@@ -8,6 +8,7 @@ module "fw_ssh_to_bastion" {
   firewall_protocol      = "tcp"
   firewall_ports         = ["22"]
   firewall_source_ranges = ["0.0.0.0/0"]
+  firewall_source_tags   = []
   firewall_target_tags   = ["bastion"]
 }
 
@@ -21,6 +22,7 @@ module "fw_ssh_bastion_to_backend" {
   firewall_protocol      = "tcp"
   firewall_ports         = ["22"]
   firewall_source_ranges = ["10.10.1.0/24"]
+  firewall_source_tags   = []
   firewall_target_tags   = ["backend"]
 }
 
@@ -33,6 +35,7 @@ module "fw_ssh_bastion_to_frontend" {
   firewall_protocol      = "tcp"
   firewall_ports         = ["22"]
   firewall_source_ranges = ["10.10.1.0/24"]
+  firewall_source_tags   = []
   firewall_target_tags   = ["frontend"]
 }
 
@@ -46,6 +49,7 @@ module "fw_http_to_frontend" {
   firewall_protocol      = "tcp"
   firewall_ports         = ["80"]
   firewall_source_ranges = ["0.0.0.0/0"]
+  firewall_source_tags   = []
   firewall_target_tags   = ["frontend"]
 }
 
@@ -59,5 +63,6 @@ module "fw_frontend_to_backend" {
   firewall_protocol      = "tcp"
   firewall_ports         = ["8080"]
   firewall_source_ranges = ["10.30.1.0/24"]
+  firewall_source_tags   = []
   firewall_target_tags   = ["backend"]
 }
