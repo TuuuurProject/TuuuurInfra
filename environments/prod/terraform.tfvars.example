@@ -1,0 +1,35 @@
+project_id = "my-gcp-project"
+region     = "europe-west1"
+env        = "prod"
+app_name   = "webplat"
+
+# Images container (Artifact Registry conseillé)
+front_image = "europe-west1-docker.pkg.dev/my-gcp-project/apps/front:1.0.0"
+api_image   = "europe-west1-docker.pkg.dev/my-gcp-project/apps/api:1.0.0"
+
+# Domaines
+front_domain = "app.example.com"
+api_domain   = "api.example.com"
+
+# DNS géré (optionnel)
+create_dns_records = false
+dns_zone_name      = null  # ex: "example-com"
+
+# Secrets (⚠️ si vous laissez Terraform gérer les valeurs, elles seront dans le state)
+db_password = "CHANGE_ME_STRONG_PASSWORD"
+
+# Redis
+redis_auth      = false
+redis_memory_gb = 1
+redis_tier      = "BASIC"
+
+# SQL Server
+sql_mode = "cloudsql" # cloudsql | vm
+
+# Bastion
+bastion_iap_members   = ["group:ops@example.com"]
+bastion_oslogin_admins = ["group:ops@example.com"]
+
+labels = {
+  owner = "platform-team"
+}

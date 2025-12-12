@@ -1,88 +1,165 @@
-# Tuuur Infra (Terraform)
+# Plateforme Web GCP (Terraform) — Cloud Run (Front + API), SQL Server, Redis, Bastion IAP, réseau privé
 
-## 🌍 Contexte
-Ce projet déploie sur **Google Cloud Platform (GCP)** l’infrastructure pour **Tuuur**, un site de quiz de culture générale en ligne.  
-L’architecture est conçue pour être **scalable, sécurisée et modulaire**.
+Cette repo Terraform déploie une plateforme **orientée production** sur **Google Cloud** :
 
----
+- **Cloud Run Front (Node.js)** exposé publiquement via **External HTTP(S) Load Balancer** + **certificat TLS géré** + **DNS optionnel**
+- **Cloud Run API (.NET 8)** exposé via son **propre** External HTTP(S) Load Balancer + TLS géré
+- **Cloud SQL for SQL Server** en **Private IP** (option managée) **ou** **VM SQL Server** (fallback)
+- **Memorystore for Redis** en réseau privé
+- **Bastion Compute Engine** (Linux) dans un subnet `admin`, **sans IP publique**, accessible via **IAP TCP forwarding** (SSH)
+- **VPC dédiée**, subnets, règles firewall minimales et strictes
+- **Secret Manager** pour les secrets utilisés par Cloud Run (injection native Cloud Run)
+- Structure multi-env : `environments/dev|stage|prod`
 
-## 🏗️ Ce qui est créé
-### Réseau
-- **VPCs** :
-  - `frontend` (héberge les serveurs web visibles depuis Internet)
-  - `backend` (héberge l’API / logique du jeu)
-  - `bastion` (point d’entrée sécurisé en SSH)
-- **Sous-réseaux** pour chaque VPC
-- **Peering** entre VPCs (permet aux réseaux de communiquer)
-- **Firewalls** :
-  - Internet → Frontend (HTTP 80)
-  - Frontend → Backend (port 8080)
-  - SSH autorisé uniquement via Bastion
-
-### Compute
-- **Bastion VM** : petite VM avec IP publique pour se connecter au reste de l’infra
-- **Frontend MIG (Managed Instance Group)** :
-  - Modèle d’instance basé sur **Nginx**
-  - Autoscaling **2 → 10 VMs**
-  - Sert le site web sur **port 80**
-- **Backend MIG (Managed Instance Group)** :
-  - Modèle d’instance basé sur **Node.js**
-  - Autoscaling **1 → 10 VMs**
-  - Sert l’API sur **port 8080**
-
-### Load Balancer
-- **1 seul Load Balancer HTTP global**
-  - `/` → frontend
-  - `/api/*` → backend
-- Fournit une **IP publique unique** pour accéder au site et à l’API
-
-### Base de données
-- **Cloud SQL (MySQL 8.0)** :
-  - Instance avec sauvegardes automatiques
-  - Base `tuuur_db` et utilisateur `tuuur_user`
-  - Mot de passe généré automatiquement
-
-### Sécurité
-- **Secret Manager** : stocke le mot de passe SQL (`tuuur-sql-user-password`)
-- **Service Account applicatif** :
-  - Accès à **Secret Manager**
-  - Accès en tant que **Client Cloud SQL**
+> Par défaut : `europe-west1` (modifiable).
 
 ---
 
-## ⚙️ Déploiement
+## Schéma logique (flux & dépendances)
 
-### Prérequis
-- **Terraform >= 1.6**
-- **gcloud** installé et authentifié (`gcloud auth application-default login`)
-- Une clé SSH publique à `~/.ssh/id_ed25519.pub`
+```
+Internet
+  |
+  | HTTPS (Front domain)                    HTTPS (API domain)
+  v                                         v
+[External HTTPS LB - Front]             [External HTTPS LB - API]
+  |  (Serverless NEG)                      |  (Serverless NEG)
+  v                                         v
+[Cloud Run Front]  -- HTTPS -->        [Cloud Run API]
+  |                                         |
+  | (VPC Access: PRIVATE_RANGES_ONLY)       | (VPC Access: PRIVATE_RANGES_ONLY)
+  v                                         v
+------------------------- VPC (custom) -------------------------
+   Subnet app (europe-west1)             Subnet admin (europe-west1)
+       |                                      |
+       |                                      | SSH via IAP (35.235.240.0/20)
+       v                                      v
+ [Serverless VPC Access Connector]       [Bastion VM (no ext IP)]
+       |
+       +--> [Memorystore Redis (private IP)]
+       |
+       +--> [Cloud SQL for SQL Server (private IP via PSA/VPC peering)]
+             (ou VM SQL Server fallback, private, port 1433)
+----------------------------------------------------------------
+```
 
-### Étapes
-1. Clone ou télécharge le projet
-2. Ouvre `modules/global_constants/outputs.tf`
-   - Remplace `REPLACE_WITH_YOUR_GCP_PROJECT_ID` par ton **ID de projet GCP**
-   - Vérifie `region` et `zone` (défaut : `europe-west1 / europe-west1-b`)
-3. Initialise Terraform :
-   ```bash
-   terraform init
-   ```
-4. Vérifie le plan :
-   ```bash
-   terraform plan
-   ```
-5. Applique :
-   ```bash
-   terraform apply
-   ```
+- L’utilisateur appelle **uniquement** le LB du **Front**.
+- Le Front appelle l’API **uniquement via** le **LB de l’API** (pas d’appel direct au service Cloud Run).
+- L’API accède à Redis et SQL Server **en privé** (VPC + VPC Access).
 
 ---
 
-## 🚀 Résultats
+## Pré-requis
 
-Après `terraform apply` :
-- `site_url` → IP publique du Load Balancer
-  - `http://<IP>/` : site frontend
-  - `http://<IP>/api/` : API backend
-- `sql_connection_name` + `sql_public_ip` → pour connecter un client SQL
-- `sql_user_secret` → nom du secret GCP contenant le mot de passe SQL
- facilement remplacer les startup scripts par un déploiement Docker/Artifact Registry.
+- Terraform >= 1.6
+- `gcloud` authentifié (Application Default Credentials) :
+  ```bash
+  gcloud auth application-default login
+  ```
+- Un projet GCP, et un domaine (ou sous-domaines) pour :
+  - `front_domain` (ex. `app.example.com`)
+  - `api_domain` (ex. `api.example.com`)
+- (Optionnel) Cloud DNS zone existante si vous voulez que Terraform crée les enregistrements A.
+
+---
+
+## Démarrage rapide
+
+### 1) Choisir un environnement
+
+Exemple avec `dev` :
+
+```bash
+cd environments/dev
+cp terraform.tfvars.example terraform.tfvars
+# éditez terraform.tfvars (project_id, domaines, images, etc.)
+terraform init
+terraform plan
+terraform apply
+```
+
+### 2) DNS (pour que le TLS Google-Managed devienne ACTIF)
+
+- Si `create_dns_records=true` et `dns_zone_name` est renseigné, Terraform crée les `A records`.
+- Sinon, créez manuellement des enregistrements `A` vers les IP retournées en outputs :
+  - `front_lb_ip`
+  - `api_lb_ip`
+
+Tant que le DNS ne pointe pas correctement, le certificat restera en `PROVISIONING` (normal).
+
+---
+
+## Sécurité & bonnes pratiques
+
+- Cloud Run utilise :
+  - `ingress = INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` (trafic uniquement via Cloud Load Balancing)
+  - `default_uri_disabled = true` (désactive l’URL par défaut `*.run.app`)
+  - `invoker_iam_disabled = true` (équivalent “unauthenticated” mais **uniquement via LB**)
+- Bastion :
+  - **pas d’IP publique**
+  - SSH via **IAP TCP forwarding** (plage IP `35.235.240.0/20`)
+  - Optionnel : OS Login + IAM (préconfiguré côté Terraform)
+- Secrets :
+  - Injection Cloud Run depuis Secret Manager (les containers ne voient pas les valeurs dans l’IaC).
+  - ⚠️ Si vous laissez Terraform **gérer les valeurs** des secrets (`create_versions=true`),
+    elles seront présentes dans le state Terraform. Protégez le state (bucket GCS + IAM strict).
+
+---
+
+## Coûts (principes appliqués)
+
+- Cloud Run : min instances = 0, CPU throttling (`cpu_idle=true`), autoscaling, concurrency paramétrable.
+- Redis : taille minimale viable (par défaut 1GB, tier BASIC).
+- SQL Server :
+  - Option 1 (managée) : Cloud SQL for SQL Server (Private IP) — simple/robuste, mais souvent coûteux.
+  - Option 2 (fallback) : VM SQL Server (Windows + image SQL PAYG) — potentiellement moins chère à petite échelle
+    mais implique patching/backup/ops.
+- Bastion : petite VM e2-micro, et vous pouvez la stopper hors horaires.
+
+---
+
+## Structure du repo
+
+```
+modules/
+  project_services/     # activation APIs
+  network/              # VPC + subnets + firewall + PSA
+  vpc_connector/        # Serverless VPC Access Connector
+  secrets/              # Secret Manager + IAM accessors
+  cloudrun_service/     # Cloud Run v2 (paramétrable, secrets env, VPC access)
+  lb_serverless/        # External HTTPS LB + serverless NEG + cert géré + DNS optionnel
+  redis/                # Memorystore Redis
+  sqlserver/            # Cloud SQL SQL Server (private) ou VM SQL Server fallback
+  bastion/              # Bastion + IAP IAM + OS Login (optionnel)
+environments/
+  dev/
+  stage/
+  prod/
+```
+
+---
+
+## Notes d’implémentation
+
+- Le module `network` configure **Private Services Access** (PSA) pour Cloud SQL Private IP (VPC peering).
+- Pour Memorystore Redis, la connexion est **privée** via VPC.
+- Le VPC Access Connector et les services Cloud Run doivent être dans la **même région**.
+
+---
+
+## Connexion au bastion (IAP)
+
+Après `apply`, utilisez :
+
+```bash
+gcloud compute ssh <bastion_name> \
+  --tunnel-through-iap \
+  --zone <zone> \
+  --project <project_id>
+```
+
+---
+
+## Variables principales (par environnement)
+
+Voir `environments/*/terraform.tfvars.example`.
