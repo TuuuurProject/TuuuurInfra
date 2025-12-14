@@ -1,11 +1,11 @@
 project_id = "my-gcp-project"
-region     = "europe-west1"
+region     = "europe-west9"
 env        = "prod"
 app_name   = "webplat"
 
 # Images container (Artifact Registry conseillé)
-front_image = "europe-west1-docker.pkg.dev/my-gcp-project/apps/front:1.0.0"
-api_image   = "europe-west1-docker.pkg.dev/my-gcp-project/apps/api:1.0.0"
+front_image = "europe-west9-docker.pkg.dev/my-gcp-project/apps/front:1.0.0"
+api_image   = "europe-west9-docker.pkg.dev/my-gcp-project/apps/api:1.0.0"
 
 # Domaines
 front_domain = "app.example.com"
@@ -13,23 +13,68 @@ api_domain   = "api.example.com"
 
 # DNS géré (optionnel)
 create_dns_records = false
-dns_zone_name      = null  # ex: "example-com"
+dns_zone_name      = null # ex: "example-com"
 
-# Secrets (⚠️ si vous laissez Terraform gérer les valeurs, elles seront dans le state)
-db_password = "CHANGE_ME_STRONG_PASSWORD"
+# Réseau (CIDRs à adapter si besoin)
+app_subnet_cidr   = "10.10.0.0/24"
+admin_subnet_cidr = "10.20.0.0/24"
+connector_cidr    = "10.30.0.0/28"
 
 # Redis
-redis_auth      = false
 redis_memory_gb = 1
 redis_tier      = "BASIC"
+redis_auth      = false
 
 # SQL Server
 sql_mode = "cloudsql" # cloudsql | vm
 
-# Bastion
-bastion_iap_members   = ["group:ops@example.com"]
-bastion_oslogin_admins = ["group:ops@example.com"]
+# Cloud SQL for SQL Server
+cloudsql_sqlserver_version = "SQLSERVER_2022_STANDARD"
+cloudsql_tier              = "db-custom-1-3840"
+cloudsql_disk_gb           = 50
+cloudsql_disk_type         = "PD_SSD"
+cloudsql_ha                = false
 
+# Database
+db_name            = "appdb"
+db_user            = "appuser"
+db_password        = "CHANGE_ME_STRONG_PASSWORD"      # ⚠️ Valeur dans le state Terraform
+sql_root_password  = "CHANGE_ME_ROOT_STRONG_PASSWORD" # ⚠️ SQL Server root password
+
+# SQL Server VM fallback (si sql_mode = "vm")
+sql_vm_zone         = "europe-west9-b"
+sql_vm_machine_type = "n2-standard-2"
+sql_vm_boot_disk_gb = 50
+sql_vm_image        = "windows-sql-cloud/sql-std-2019-win-2022"
+
+# Cloud Run tuning
+front_min_instances = 0
+front_max_instances = 50
+front_concurrency   = 80
+
+api_min_instances = 0
+api_max_instances = 50
+api_concurrency   = 40
+
+# Labels communs
 labels = {
   owner = "platform-team"
 }
+
+# Bastion / IAP
+bastion_zone           = "europe-west9-b"
+bastion_machine_type   = "e2-micro"
+bastion_iap_members    = ["user:your-email@example.com"]
+bastion_oslogin_admins = ["user:your-email@example.com"]
+
+# API Configuration
+jwt_key            = "C3DCj6stV67r6466Wjip3j4H26Uc9TYi5e29ccY45BwM342fWseLWQ5T9UW8b4gAtXAg27g2Q7qP568F9FE59753NBBzs9piKNfF3SBZ27wRhz286Gv6QmEk2Ht8ciftHwF2jtiRA2arBMgw8u8ry57vYNSVkchFEhHk6p3gTL5XFz9dPYFEp9LY7Kzx7kU8E2jB9gHgxt9jMma79wCv36X252Ym99U92W3XR797byN9rBrSkbLy6kRPD48"
+google_client_id   = "777528026888-g0k10fum3sr0cej5cqi2cutvehhrsa71.apps.googleusercontent.com"
+
+# SMTP Configuration
+smtp_from_address = "no-reply@florent-dubut.fr"
+smtp_from_name    = "Tuuuur"
+smtp_host         = "ssl0.ovh.net"
+smtp_port         = 587
+smtp_user         = "postmaster@florent-dubut.fr"
+smtp_password     = "8Sn%Zh,2Bc;QZ4g"

@@ -11,7 +11,7 @@ Cette repo Terraform déploie une plateforme **orientée production** sur **Goog
 - **Secret Manager** pour les secrets utilisés par Cloud Run (injection native Cloud Run)
 - Structure multi-env : `environments/dev|stage|prod`
 
-> Par défaut : `europe-west1` (modifiable).
+> Par défaut : `europe-west9` (modifiable).
 
 ---
 
@@ -30,7 +30,7 @@ Internet
   | (VPC Access: PRIVATE_RANGES_ONLY)       | (VPC Access: PRIVATE_RANGES_ONLY)
   v                                         v
 ------------------------- VPC (custom) -------------------------
-   Subnet app (europe-west1)             Subnet admin (europe-west1)
+   Subnet app (europe-west9)             Subnet admin (europe-west9)
        |                                      |
        |                                      | SSH via IAP (35.235.240.0/20)
        v                                      v

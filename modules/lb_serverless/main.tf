@@ -7,6 +7,10 @@ resource "google_compute_managed_ssl_certificate" "cert" {
   managed {
     domains = var.domains
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "google_compute_region_network_endpoint_group" "neg" {

@@ -30,24 +30,24 @@ module "network" {
 
   subnets = {
     app = {
-      cidr                = var.app_subnet_cidr
-      region              = var.region
+      cidr                  = var.app_subnet_cidr
+      region                = var.region
       private_google_access = true
     }
     admin = {
-      cidr                = var.admin_subnet_cidr
-      region              = var.region
+      cidr                  = var.admin_subnet_cidr
+      region                = var.region
       private_google_access = true
     }
     connector = {
-      cidr                = var.connector_cidr
-      region              = var.region
+      cidr                  = var.connector_cidr
+      region                = var.region
       private_google_access = true
     }
   }
 
-  bastion_network_tags = ["${local.prefix}-bastion"]
-  enable_private_service_access = true
+  bastion_network_tags                 = ["${local.prefix}-bastion"]
+  enable_private_service_access        = true
   private_service_access_prefix_length = 16
 }
 
@@ -100,42 +100,43 @@ module "redis" {
   region      = var.region
   network_id  = module.network.network_id
 
-  tier          = var.redis_tier
-  memory_size_gb = var.redis_memory_gb
-  auth_enabled  = var.redis_auth
+  tier                    = var.redis_tier
+  memory_size_gb          = var.redis_memory_gb
+  auth_enabled            = var.redis_auth
   transit_encryption_mode = "DISABLED" # ou "SERVER_AUTHENTICATION" si supporté et requis
-  labels        = local.labels
+  labels                  = local.labels
 }
 
 # SQL Server (Cloud SQL privé par défaut, VM fallback possible)
 module "sql" {
   source      = "../../modules/sqlserver"
-  depends_on = [module.network]
+  depends_on  = [module.network]
   project_id  = var.project_id
   name_prefix = local.prefix
   region      = var.region
   labels      = local.labels
 
-  mode          = var.sql_mode
-  network_id       = module.network.network_id
+  mode              = var.sql_mode
+  network_id        = module.network.network_id
   network_self_link = module.network.network_self_link
 
   # Cloud SQL
-  database_version = var.cloudsql_sqlserver_version
-  tier             = var.cloudsql_tier
+  database_version  = var.cloudsql_sqlserver_version
+  tier              = var.cloudsql_tier
   disk_size_gb      = var.cloudsql_disk_gb
   disk_type         = var.cloudsql_disk_type
   high_availability = var.cloudsql_ha
 
-  db_name     = var.db_name
-  db_user     = var.db_user
-  db_password = var.db_password
+  db_name       = var.db_name
+  db_user       = var.db_user
+  db_password   = var.db_password
+  root_password = var.sql_root_password
 
   # VM fallback
-  vm_zone         = var.sql_vm_zone
-  vm_machine_type = var.sql_vm_machine_type
-  vm_image        = var.sql_vm_image
-  vm_boot_disk_gb = var.sql_vm_boot_disk_gb
+  vm_zone             = var.sql_vm_zone
+  vm_machine_type     = var.sql_vm_machine_type
+  vm_image            = var.sql_vm_image
+  vm_boot_disk_gb     = var.sql_vm_boot_disk_gb
   vm_subnet_self_link = module.network.subnet_self_links["app"]
   allowed_source_ranges = [
     var.connector_cidr,
@@ -152,15 +153,15 @@ module "cloudrun_front" {
   region      = var.region
   labels      = local.labels
 
-  image                  = var.front_image
-  service_account_email  = google_service_account.run_front.email
-  ingress                = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
-  default_uri_disabled   = true
-  invoker_iam_disabled   = true
+  image                 = var.front_image
+  service_account_email = google_service_account.run_front.email
+  ingress               = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  default_uri_disabled  = true
+  invoker_iam_disabled  = true
 
-  cpu     = "1"
-  memory  = "512Mi"
-  cpu_idle = true
+  cpu               = "1"
+  memory            = "512Mi"
+  cpu_idle          = true
   startup_cpu_boost = false
 
   min_instances = var.front_min_instances
@@ -168,7 +169,8 @@ module "cloudrun_front" {
   concurrency   = var.front_concurrency
 
   env_vars = {
-    API_BASE_URL = "https://${var.api_domain}"
+    VITE_API_URL          = "https://${var.api_domain}/api/v1/"
+    VITE_GOOGLE_CLIENT_ID = var.google_client_id
   }
 }
 
@@ -188,9 +190,9 @@ module "cloudrun_api" {
   default_uri_disabled = true
   invoker_iam_disabled = true
 
-  cpu     = "1"
-  memory  = "1024Mi"
-  cpu_idle = true
+  cpu               = "1"
+  memory            = "1024Mi"
+  cpu_idle          = true
   startup_cpu_boost = true
 
   min_instances = var.api_min_instances
@@ -201,11 +203,25 @@ module "cloudrun_api" {
   vpc_egress       = "PRIVATE_RANGES_ONLY"
 
   env_vars = {
-    DB_HOST     = module.sql.private_ip_address
-    DB_NAME     = var.db_name
-    DB_USER     = var.db_user
-    REDIS_HOST  = module.redis.host
-    REDIS_PORT  = tostring(module.redis.port)
+    # Database Connection String
+    "ConnectionStrings__Tuuuur" = "Server=${module.sql.private_ip_address},1433;Database=${var.db_name};User Id=${var.db_user};Password=${var.db_password};TrustServerCertificate=True;"
+
+    # Redis Connection String
+    "ConnectionStrings__Redis" = var.redis_auth ? "${module.redis.host}:${module.redis.port},password=${var.db_password}" : "${module.redis.host}:${module.redis.port}"
+
+    # JWT Settings
+    "JwtSettings__Key" = var.jwt_key
+
+    # Google Authentication
+    "Authentification__Google__ClientId" = var.google_client_id
+
+    # SMTP Configuration
+    "SmtpEmailConfiguration__FromAddress"  = var.smtp_from_address
+    "SmtpEmailConfiguration__FromName"     = var.smtp_from_name
+    "SmtpEmailConfiguration__SmtpAddress"  = var.smtp_host
+    "SmtpEmailConfiguration__SmtpPort"     = tostring(var.smtp_port)
+    "SmtpEmailConfiguration__SmtpLogin"    = var.smtp_user
+    "SmtpEmailConfiguration__SmtpPassword" = var.smtp_password
   }
 
   secret_env_vars = [
@@ -252,17 +268,17 @@ module "lb_api" {
 
 # Bastion (IAP)
 module "bastion" {
-  source      = "../../modules/bastion"
-  project_id  = var.project_id
-  name_prefix = local.prefix
-  zone        = var.bastion_zone
+  source       = "../../modules/bastion"
+  project_id   = var.project_id
+  name_prefix  = local.prefix
+  zone         = var.bastion_zone
   machine_type = var.bastion_machine_type
-  labels      = local.labels
+  labels       = local.labels
 
   network_id       = module.network.network_id
   subnet_self_link = module.network.subnet_self_links["admin"]
   network_tags     = ["${local.prefix}-bastion"]
 
-  iap_members       = var.bastion_iap_members
-  oslogin_admins    = var.bastion_oslogin_admins
+  iap_members    = var.bastion_iap_members
+  oslogin_admins = var.bastion_oslogin_admins
 }
