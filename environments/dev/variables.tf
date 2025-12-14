@@ -9,7 +9,7 @@ variable "region" {
 
 variable "env" {
   type = string
-} # dev | stage | prod
+} # dev | preprod | prod
 
 variable "app_name" {
   type    = string

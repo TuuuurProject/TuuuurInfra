@@ -41,8 +41,8 @@
 3. **Mettre à jour terraform.tfvars**
 
    ```terraform
-   front_domain = "stage.votre-domaine.com"
-   api_domain   = "api-stage.votre-domaine.com"
+   front_domain = "preprod.votre-domaine.com"
+   api_domain   = "api-preprod.votre-domaine.com"
    ```
 
 ## 🚀 Déploiement
@@ -67,8 +67,8 @@ Après le déploiement :
 terraform output
 
 # Tester la résolution DNS
-dig stage.votre-domaine.com +short
-dig api-stage.votre-domaine.com +short
+dig preprod.votre-domaine.com +short
+dig api-preprod.votre-domaine.com +short
 
 # Vérifier les certificats SSL
 gcloud compute ssl-certificates list

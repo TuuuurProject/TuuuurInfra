@@ -43,3 +43,9 @@ variable "transit_encryption_mode" {
   type    = string
   default = "DISABLED" # ou SERVER_AUTHENTICATION
 }
+
+variable "service_networking_connection" {
+  description = "Service Networking Connection dependency for proper destroy order"
+  type        = any
+  default     = null
+}

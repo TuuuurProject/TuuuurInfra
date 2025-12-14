@@ -12,3 +12,8 @@ output "subnet_names" {
 output "private_service_access_connection_id" {
   value = try(google_service_networking_connection.psa_connection[0].id, null)
 }
+
+output "service_networking_connection" {
+  description = "Service Networking Connection for dependency management"
+  value       = try(google_service_networking_connection.psa_connection[0], null)
+}

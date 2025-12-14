@@ -9,7 +9,7 @@ Cette repo Terraform déploie une plateforme **orientée production** sur **Goog
 - **Bastion Compute Engine** (Linux) dans un subnet `admin`, **sans IP publique**, accessible via **IAP TCP forwarding** (SSH)
 - **VPC dédiée**, subnets, règles firewall minimales et strictes
 - **Secret Manager** pour les secrets utilisés par Cloud Run (injection native Cloud Run)
-- Structure multi-env : `environments/dev|stage|prod`
+- Structure multi-env : `environments/dev|preprod|prod`
 
 > Par défaut : `europe-west9` (modifiable).
 
@@ -133,7 +133,7 @@ modules/
   bastion/              # Bastion + IAP IAM + OS Login (optionnel)
 environments/
   dev/
-  stage/
+  preprod/
   prod/
 ```
 
@@ -163,3 +163,45 @@ gcloud compute ssh <bastion_name> \
 ## Variables principales (par environnement)
 
 Voir `environments/*/terraform.tfvars.example`.
+
+---
+
+## 🚀 Migration Automatique SQL Server
+
+### Solution recommandée : Cloud Run Job (Automatique)
+
+La migration de la base de données SQL Server est **entièrement automatisée** via un Cloud Run Job qui exécute votre image Docker de migration (DACPAC).
+
+**Configuration** dans `environments/preprod/terraform.tfvars` :
+
+```hcl
+run_db_migration   = true
+db_migration_image = "europe-west9-docker.pkg.dev/tuuuur/tuuuur/database:preprod"
+```
+
+**Ce que fait la migration automatique** :
+
+- ✅ Crée les tables, vues, procédures stockées
+- ✅ Configure automatiquement l'utilisateur dans la base de données
+- ✅ Applique les permissions (db_owner)
+- ✅ Exécute automatiquement lors du `terraform apply`
+- ✅ Peut être ré-exécutée à tout moment
+
+**Documentation complète** : `environments/preprod/DATABASE_MIGRATION.md`
+
+### Solution manuelle (Fallback)
+
+Si vous préférez configurer manuellement :
+
+```bash
+gcloud sql connect webplat-preprod-sql --user=sqlserver --database=master
+
+USE [appdb];
+GO
+CREATE USER [appuser] FOR LOGIN [appuser];
+GO
+ALTER ROLE db_owner ADD MEMBER [appuser];
+GO
+```
+
+Voir `environments/preprod/FIX_SQL_PERMISSIONS.md` pour les détails.

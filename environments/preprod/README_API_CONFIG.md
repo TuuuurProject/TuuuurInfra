@@ -43,7 +43,7 @@ Authentification__Google__ClientId = {GOOGLE_CLIENT_ID}
 1. Allez sur [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
 2. Créez des identifiants OAuth 2.0
 3. Configurez les origines autorisées:
-   - `https://stage.tuuuur.florent-dubut.fr.com`
+   - `https://preprod.tuuuur.florent-dubut.fr.com`
    - `https://tuuuur.florent-dubut.fr.com`
 4. Copiez le Client ID
 
@@ -92,7 +92,7 @@ smtp_password = "your-mailgun-password"
 
 ## Configuration dans terraform.tfvars
 
-Éditez `/Users/florentdubut/Documents/M2/TuuuurInfra/environments/stage/terraform.tfvars`:
+Éditez `/Users/florentdubut/Documents/M2/TuuuurInfra/environments/preprod/terraform.tfvars`:
 
 ```hcl
 # API Configuration
@@ -129,7 +129,7 @@ Les variables suivantes sont marquées comme **sensibles** et ne seront pas affi
 Après configuration, vérifiez avec:
 
 ```bash
-cd /Users/florentdubut/Documents/M2/TuuuurInfra/environments/stage
+cd /Users/florentdubut/Documents/M2/TuuuurInfra/environments/preprod
 terraform plan -var-file="terraform.tfvars" -var-file="ovh_credentials.tfvars"
 ```
 

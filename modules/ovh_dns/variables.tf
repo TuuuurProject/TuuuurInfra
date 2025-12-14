@@ -5,7 +5,7 @@ variable "domain" {
 
 variable "subdomain" {
   type        = string
-  description = "Sous-domaine (ex: stage, api-stage)"
+  description = "Sous-domaine (ex: preprod, api-preprod)"
 }
 
 variable "target" {

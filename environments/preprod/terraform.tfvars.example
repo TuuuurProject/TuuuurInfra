@@ -1,6 +1,6 @@
 project_id = "my-gcp-project"
 region     = "europe-west9"
-env        = "stage"
+env        = "preprod"
 app_name   = "webplat"
 
 # Images container (Artifact Registry conseillé)
@@ -85,3 +85,9 @@ ovh_domain             = "domain_name"
 ovh_application_key    = "key"
 ovh_application_secret = "key"
 ovh_consumer_key       = "key"
+
+# Database Migration (optionnel mais recommandé)
+run_db_migration   = true
+db_migration_image = "europe-west9-docker.pkg.dev/my-gcp-project/apps/database:latest"
+# Image Docker contenant sqlpackage et votre DACPAC (.NET SQL Database Project)
+# Voir environments/preprod/DATABASE_MIGRATION.md pour plus de détails

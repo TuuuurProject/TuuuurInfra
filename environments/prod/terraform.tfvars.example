@@ -68,13 +68,20 @@ bastion_iap_members    = ["user:your-email@example.com"]
 bastion_oslogin_admins = ["user:your-email@example.com"]
 
 # API Configuration
-jwt_key            = "C3DCj6stV67r6466Wjip3j4H26Uc9TYi5e29ccY45BwM342fWseLWQ5T9UW8b4gAtXAg27g2Q7qP568F9FE59753NBBzs9piKNfF3SBZ27wRhz286Gv6QmEk2Ht8ciftHwF2jtiRA2arBMgw8u8ry57vYNSVkchFEhHk6p3gTL5XFz9dPYFEp9LY7Kzx7kU8E2jB9gHgxt9jMma79wCv36X252Ym99U92W3XR797byN9rBrSkbLy6kRPD48"
-google_client_id   = "777528026888-g0k10fum3sr0cej5cqi2cutvehhrsa71.apps.googleusercontent.com"
+jwt_key            = "CHANGE_ME_JWT_SECRET_KEY_MIN_32_CHARS" # ⚠️ Minimum 32 caractères
+google_client_id   = "your-google-client-id.apps.googleusercontent.com"
 
 # SMTP Configuration
-smtp_from_address = "no-reply@florent-dubut.fr"
-smtp_from_name    = "Tuuuur"
-smtp_host         = "ssl0.ovh.net"
+smtp_from_address = "noreply@example.com"
+smtp_from_name    = "My Application"
+smtp_host         = "smtp.gmail.com"
 smtp_port         = 587
-smtp_user         = "postmaster@florent-dubut.fr"
-smtp_password     = "8Sn%Zh,2Bc;QZ4g"
+smtp_user         = "your-smtp-user@gmail.com"
+smtp_password     = "CHANGE_ME_SMTP_PASSWORD" # ⚠️ Valeur dans le state Terraform
+
+
+# OVH DNS Configuration
+ovh_domain             = "domain_name"
+ovh_application_key    = "key"
+ovh_application_secret = "key"
+ovh_consumer_key       = "key"

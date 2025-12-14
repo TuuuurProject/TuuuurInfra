@@ -4,6 +4,8 @@ resource "google_cloud_run_v2_service" "service" {
   name     = var.name
   location = var.region
 
+  deletion_protection = false
+
   ingress              = var.ingress
   default_uri_disabled = var.default_uri_disabled
   invoker_iam_disabled = var.invoker_iam_disabled
@@ -60,7 +62,7 @@ resource "google_cloud_run_v2_service" "service" {
           value_source {
             secret_key_ref {
               secret  = env.value.secret
-              version = try(env.value.version, "latest")
+              version = env.value.version
             }
           }
         }

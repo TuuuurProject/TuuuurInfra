@@ -78,34 +78,26 @@ variable "root_password" {
   description = "Root password for SQL Server instance"
 }
 
-# VM fallback (Compute Engine SQL Server)
-variable "vm_zone" {
-  type    = string
-  default = "europe-west9-b"
+variable "run_migration" {
+  type        = bool
+  default     = true
+  description = "Si true, exécute automatiquement la migration SQL via Cloud Run Job après la création de la base de données."
 }
 
-variable "vm_machine_type" {
-  type    = string
-  default = "n2-standard-2"
+variable "migration_image" {
+  type        = string
+  default     = ""
+  description = "Image Docker contenant sqlpackage et le DACPAC pour migrer la base de données. Ex: europe-west9-docker.pkg.dev/tuuuur/tuuuur/database:preprod"
 }
 
-variable "vm_image" {
-  type    = string
-  default = "windows-sql-cloud/sql-std-2019-win-2022"
+variable "vpc_connector_id" {
+  type        = string
+  default     = null
+  description = "ID du VPC Connector pour permettre au Cloud Run Job d'accéder à Cloud SQL en privé."
 }
 
-variable "vm_boot_disk_gb" {
-  type    = number
-  default = 50
-}
-
-variable "vm_subnet_self_link" {
-  type    = string
-  default = null
-}
-
-variable "allowed_source_ranges" {
-  type        = list(string)
-  default     = []
-  description = "Sources autorisées vers la VM SQL Server (TCP 1433) : ex CIDR connector + admin subnet."
+variable "service_networking_connection" {
+  description = "Service Networking Connection dependency for proper destroy order"
+  type        = any
+  default     = null
 }

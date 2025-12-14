@@ -17,5 +17,9 @@ terraform {
       source  = "ovh/ovh"
       version = "~> 0.35"
     }
+    mssql = {
+      source  = "betr-io/mssql"
+      version = "~> 0.3.0"
+    }
   }
 }
