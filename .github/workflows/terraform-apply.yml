@@ -1,0 +1,182 @@
+name: Terraform Apply
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: "Environment to deploy (dev, preprod, prod)"
+      terraform_version:
+        required: false
+        type: string
+        default: "1.6.0"
+        description: "Terraform version to use"
+    secrets:
+      GCP_SA_KEY:
+        required: true
+      # Core variables
+      TF_VAR_project_id:
+        required: true
+      TF_VAR_region:
+        required: false
+      TF_VAR_env:
+        required: true
+      TF_VAR_front_image:
+        required: true
+      TF_VAR_api_image:
+        required: true
+      TF_VAR_front_domain:
+        required: true
+      TF_VAR_api_domain:
+        required: true
+      # Database secrets
+      TF_VAR_db_password:
+        required: true
+      TF_VAR_sql_root_password:
+        required: true
+      # API secrets
+      TF_VAR_jwt_key:
+        required: true
+      TF_VAR_google_client_id:
+        required: true
+      # SMTP secrets
+      TF_VAR_smtp_from_address:
+        required: true
+      TF_VAR_smtp_from_name:
+        required: true
+      TF_VAR_smtp_host:
+        required: true
+      TF_VAR_smtp_user:
+        required: true
+      TF_VAR_smtp_password:
+        required: true
+      # OVH DNS secrets
+      TF_VAR_ovh_domain:
+        required: false
+      TF_VAR_ovh_application_key:
+        required: false
+      TF_VAR_ovh_application_secret:
+        required: false
+      TF_VAR_ovh_consumer_key:
+        required: false
+      # Database migration
+      TF_VAR_db_migration_image:
+        required: false
+      # Bastion
+      TF_VAR_bastion_iap_members:
+        required: false
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    defaults:
+      run:
+        working-directory: environments/${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        env:
+          TF_VAR_project_id: ${{ secrets.TF_VAR_project_id }}
+          TF_VAR_region: ${{ secrets.TF_VAR_region }}
+          TF_VAR_env: ${{ secrets.TF_VAR_env }}
+          TF_VAR_front_image: ${{ secrets.TF_VAR_front_image }}
+          TF_VAR_api_image: ${{ secrets.TF_VAR_api_image }}
+          TF_VAR_front_domain: ${{ secrets.TF_VAR_front_domain }}
+          TF_VAR_api_domain: ${{ secrets.TF_VAR_api_domain }}
+          TF_VAR_db_password: ${{ secrets.TF_VAR_db_password }}
+          TF_VAR_sql_root_password: ${{ secrets.TF_VAR_sql_root_password }}
+          TF_VAR_jwt_key: ${{ secrets.TF_VAR_jwt_key }}
+          TF_VAR_google_client_id: ${{ secrets.TF_VAR_google_client_id }}
+          TF_VAR_smtp_from_address: ${{ secrets.TF_VAR_smtp_from_address }}
+          TF_VAR_smtp_from_name: ${{ secrets.TF_VAR_smtp_from_name }}
+          TF_VAR_smtp_host: ${{ secrets.TF_VAR_smtp_host }}
+          TF_VAR_smtp_user: ${{ secrets.TF_VAR_smtp_user }}
+          TF_VAR_smtp_password: ${{ secrets.TF_VAR_smtp_password }}
+          TF_VAR_ovh_domain: ${{ secrets.TF_VAR_ovh_domain }}
+          TF_VAR_ovh_application_key: ${{ secrets.TF_VAR_ovh_application_key }}
+          TF_VAR_ovh_application_secret: ${{ secrets.TF_VAR_ovh_application_secret }}
+          TF_VAR_ovh_consumer_key: ${{ secrets.TF_VAR_ovh_consumer_key }}
+          TF_VAR_db_migration_image: ${{ secrets.TF_VAR_db_migration_image }}
+          TF_VAR_bastion_iap_members: ${{ secrets.TF_VAR_bastion_iap_members }}
+        run: |
+          terraform plan -no-color -input=false -out=tfplan
+        continue-on-error: false
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ inputs.environment }}
+          path: environments/${{ inputs.environment }}/tfplan
+          retention-days: 5
+
+      - name: Terraform Apply
+        id: apply
+        env:
+          TF_VAR_project_id: ${{ secrets.TF_VAR_project_id }}
+          TF_VAR_region: ${{ secrets.TF_VAR_region }}
+          TF_VAR_env: ${{ secrets.TF_VAR_env }}
+          TF_VAR_front_image: ${{ secrets.TF_VAR_front_image }}
+          TF_VAR_api_image: ${{ secrets.TF_VAR_api_image }}
+          TF_VAR_front_domain: ${{ secrets.TF_VAR_front_domain }}
+          TF_VAR_api_domain: ${{ secrets.TF_VAR_api_domain }}
+          TF_VAR_db_password: ${{ secrets.TF_VAR_db_password }}
+          TF_VAR_sql_root_password: ${{ secrets.TF_VAR_sql_root_password }}
+          TF_VAR_jwt_key: ${{ secrets.TF_VAR_jwt_key }}
+          TF_VAR_google_client_id: ${{ secrets.TF_VAR_google_client_id }}
+          TF_VAR_smtp_from_address: ${{ secrets.TF_VAR_smtp_from_address }}
+          TF_VAR_smtp_from_name: ${{ secrets.TF_VAR_smtp_from_name }}
+          TF_VAR_smtp_host: ${{ secrets.TF_VAR_smtp_host }}
+          TF_VAR_smtp_user: ${{ secrets.TF_VAR_smtp_user }}
+          TF_VAR_smtp_password: ${{ secrets.TF_VAR_smtp_password }}
+          TF_VAR_ovh_domain: ${{ secrets.TF_VAR_ovh_domain }}
+          TF_VAR_ovh_application_key: ${{ secrets.TF_VAR_ovh_application_key }}
+          TF_VAR_ovh_application_secret: ${{ secrets.TF_VAR_ovh_application_secret }}
+          TF_VAR_ovh_consumer_key: ${{ secrets.TF_VAR_ovh_consumer_key }}
+          TF_VAR_db_migration_image: ${{ secrets.TF_VAR_db_migration_image }}
+          TF_VAR_bastion_iap_members: ${{ secrets.TF_VAR_bastion_iap_members }}
+        run: |
+          terraform apply -auto-approve -input=false tfplan
+
+      - name: Terraform Output
+        id: output
+        run: terraform output -json > terraform-outputs.json
+
+      - name: Upload Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs-${{ inputs.environment }}
+          path: environments/${{ inputs.environment }}/terraform-outputs.json
+          retention-days: 30

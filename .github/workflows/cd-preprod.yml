@@ -1,0 +1,65 @@
+name: CD - Deploy Preprod
+
+on:
+  push:
+    branches:
+      - release
+    paths:
+      - 'environments/preprod/**'
+      - 'modules/**'
+      - '.github/workflows/cd-preprod.yml'
+      - '.github/workflows/terraform-apply.yml'
+
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm deployment'
+        required: true
+        default: 'no'
+
+jobs:
+  check-confirmation:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
+            echo "Deployment not confirmed. Exiting."
+            exit 1
+          fi
+
+  terraform-apply:
+    needs: [check-confirmation]
+    if: |
+      always() && 
+      (github.event_name == 'push' || 
+       (github.event_name == 'workflow_dispatch' && needs.check-confirmation.result == 'success'))
+    uses: ./.github/workflows/terraform-apply.yml
+    with:
+      environment: "preprod"
+      terraform_version: "1.6.0"
+    secrets:
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      TF_VAR_project_id: ${{ secrets.TF_VAR_PROJECT_ID_PREPROD }}
+      TF_VAR_region: ${{ secrets.TF_VAR_REGION_PREPROD }}
+      TF_VAR_env: ${{ secrets.TF_VAR_ENV_PREPROD }}
+      TF_VAR_front_image: ${{ secrets.TF_VAR_FRONT_IMAGE_PREPROD }}
+      TF_VAR_api_image: ${{ secrets.TF_VAR_API_IMAGE_PREPROD }}
+      TF_VAR_front_domain: ${{ secrets.TF_VAR_FRONT_DOMAIN_PREPROD }}
+      TF_VAR_api_domain: ${{ secrets.TF_VAR_API_DOMAIN_PREPROD }}
+      TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD_PREPROD }}
+      TF_VAR_sql_root_password: ${{ secrets.TF_VAR_SQL_ROOT_PASSWORD_PREPROD }}
+      TF_VAR_jwt_key: ${{ secrets.TF_VAR_JWT_KEY_PREPROD }}
+      TF_VAR_google_client_id: ${{ secrets.TF_VAR_GOOGLE_CLIENT_ID_PREPROD }}
+      TF_VAR_smtp_from_address: ${{ secrets.TF_VAR_SMTP_FROM_ADDRESS_PREPROD }}
+      TF_VAR_smtp_from_name: ${{ secrets.TF_VAR_SMTP_FROM_NAME_PREPROD }}
+      TF_VAR_smtp_host: ${{ secrets.TF_VAR_SMTP_HOST_PREPROD }}
+      TF_VAR_smtp_user: ${{ secrets.TF_VAR_SMTP_USER_PREPROD }}
+      TF_VAR_smtp_password: ${{ secrets.TF_VAR_SMTP_PASSWORD_PREPROD }}
+      TF_VAR_ovh_domain: ${{ secrets.TF_VAR_OVH_DOMAIN_PREPROD }}
+      TF_VAR_ovh_application_key: ${{ secrets.TF_VAR_OVH_APPLICATION_KEY_PREPROD }}
+      TF_VAR_ovh_application_secret: ${{ secrets.TF_VAR_OVH_APPLICATION_SECRET_PREPROD }}
+      TF_VAR_ovh_consumer_key: ${{ secrets.TF_VAR_OVH_CONSUMER_KEY_PREPROD }}
+      TF_VAR_db_migration_image: ${{ secrets.TF_VAR_DB_MIGRATION_IMAGE_PREPROD }}
+      TF_VAR_bastion_iap_members: ${{ secrets.TF_VAR_BASTION_IAP_MEMBERS_PREPROD }}

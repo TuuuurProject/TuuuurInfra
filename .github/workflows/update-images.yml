@@ -1,0 +1,57 @@
+name: Update Terraform Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to update (preprod or prod)'
+        required: true
+        type: choice
+        options:
+          - preprod
+          - prod
+      front_image:
+        description: 'Front Docker image (optional, leave empty to keep current)'
+        required: false
+      api_image:
+        description: 'API Docker image (optional, leave empty to keep current)'
+        required: false
+
+jobs:
+  update-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update secrets if provided
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          FRONT_IMAGE: ${{ inputs.front_image }}
+          API_IMAGE: ${{ inputs.api_image }}
+        run: |
+          ENV_UPPER=$(echo $ENVIRONMENT | tr '[:lower:]' '[:upper:]')
+          
+          if [ -n "$FRONT_IMAGE" ]; then
+            echo "Updating TF_VAR_FRONT_IMAGE_${ENV_UPPER}"
+            gh secret set "TF_VAR_FRONT_IMAGE_${ENV_UPPER}" --body "$FRONT_IMAGE"
+          fi
+          
+          if [ -n "$API_IMAGE" ]; then
+            echo "Updating TF_VAR_API_IMAGE_${ENV_UPPER}"
+            gh secret set "TF_VAR_API_IMAGE_${ENV_UPPER}" --body "$API_IMAGE"
+          fi
+
+      - name: Trigger Terraform deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          if [ "$ENVIRONMENT" = "preprod" ]; then
+            gh workflow run cd-preprod.yml
+          else
+            gh workflow run cd-prod.yml
+          fi
+          
+          echo "Deployment workflow triggered for $ENVIRONMENT"
