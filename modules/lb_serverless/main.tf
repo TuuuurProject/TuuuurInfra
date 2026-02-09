@@ -2,10 +2,13 @@ resource "google_compute_global_address" "ip" {
   name = "${var.name_prefix}-lb-ip"
 }
 
-resource "google_compute_managed_ssl_certificate" "cert" {
-  name = "${var.name_prefix}-cert"
+# Un certificat SSL par domaine (Google ne permet pas de mettre à jour un certificat en place)
+resource "google_compute_managed_ssl_certificate" "certs" {
+  for_each = toset(var.domains)
+
+  name = "${var.name_prefix}-cert-${replace(replace(each.value, ".", "-"), "*", "wildcard")}"
   managed {
-    domains = var.domains
+    domains = [each.value]
   }
 
   lifecycle {
@@ -48,7 +51,7 @@ resource "google_compute_url_map" "https" {
 resource "google_compute_target_https_proxy" "https" {
   name             = "${var.name_prefix}-https-proxy"
   url_map          = google_compute_url_map.https.id
-  ssl_certificates = [google_compute_managed_ssl_certificate.cert.id]
+  ssl_certificates = [for cert in google_compute_managed_ssl_certificate.certs : cert.id]
 }
 
 resource "google_compute_global_forwarding_rule" "https" {

@@ -105,6 +105,9 @@ module "redis" {
   auth_enabled            = var.redis_auth
   transit_encryption_mode = "DISABLED" # ou "SERVER_AUTHENTICATION" si supporté et requis
   labels                  = local.labels
+
+  # Dépendance pour ordre de destruction correct
+  service_networking_connection = module.network.service_networking_connection
 }
 
 # SQL Server (Cloud SQL privé par défaut, VM fallback possible)
@@ -132,16 +135,13 @@ module "sql" {
   db_password   = var.db_password
   root_password = var.sql_root_password
 
-  # VM fallback
-  vm_zone             = var.sql_vm_zone
-  vm_machine_type     = var.sql_vm_machine_type
-  vm_image            = var.sql_vm_image
-  vm_boot_disk_gb     = var.sql_vm_boot_disk_gb
-  vm_subnet_self_link = module.network.subnet_self_links["app"]
-  allowed_source_ranges = [
-    var.connector_cidr,
-    var.admin_subnet_cidr
-  ]
+  # Migration automatique via Cloud Run Job
+  run_migration    = var.run_db_migration
+  migration_image  = var.db_migration_image
+  vpc_connector_id = module.vpc_connector.id
+
+  # Dépendance pour ordre de destruction correct
+  service_networking_connection = module.network.service_networking_connection
 }
 
 # Cloud Run - Front (sans VPC)
@@ -167,16 +167,12 @@ module "cloudrun_front" {
   min_instances = var.front_min_instances
   max_instances = var.front_max_instances
   concurrency   = var.front_concurrency
-
-  env_vars = {
-    VITE_API_URL          = "https://${var.api_domain}/api/v1/"
-    VITE_GOOGLE_CLIENT_ID = var.google_client_id
-  }
 }
 
 # Cloud Run - API (avec VPC)
 module "cloudrun_api" {
   source      = "../../modules/cloudrun_service"
+  depends_on  = [module.secrets]
   project_id  = var.project_id
   name_prefix = local.prefix
   name        = "${local.prefix}-api"
@@ -228,13 +224,13 @@ module "cloudrun_api" {
     {
       name    = "DB_PASSWORD"
       secret  = module.secrets.secret_ids["db-password"]
-      version = "latest"
+      version = "1"
     },
     # optionnel
     {
       name    = "REDIS_AUTH"
       secret  = module.secrets.secret_ids["redis-auth"]
-      version = "latest"
+      version = "1"
     }
   ]
 }

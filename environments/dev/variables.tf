@@ -254,3 +254,16 @@ variable "smtp_password" {
   sensitive   = true
   description = "SMTP password"
 }
+
+# Database Migration
+variable "run_db_migration" {
+  type        = bool
+  default     = true
+  description = "Si true, exécute automatiquement la migration de la base de données via Cloud Run Job après création"
+}
+
+variable "db_migration_image" {
+  type        = string
+  default     = ""
+  description = "Image Docker pour la migration SQL (DACPAC). Ex: europe-west9-docker.pkg.dev/tuuuur/tuuuur/database:dev"
+}

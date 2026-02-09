@@ -166,16 +166,27 @@ module "cloudrun_front" {
   min_instances = var.front_min_instances
   max_instances = var.front_max_instances
   concurrency   = var.front_concurrency
+}
 
-  env_vars = {
-    VITE_API_URL          = "https://${var.api_domain}/api/v1/"
-    VITE_GOOGLE_CLIENT_ID = var.google_client_id
-  }
+# IAM pour permettre au Load Balancer d'appeler les services Cloud Run
+resource "google_cloud_run_service_iam_member" "front_invoker" {
+  service  = module.cloudrun_front.service_id
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+resource "google_cloud_run_service_iam_member" "api_invoker" {
+  service  = module.cloudrun_api.service_id
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
 
 # Cloud Run - API (avec VPC)
 module "cloudrun_api" {
   source      = "../../modules/cloudrun_service"
+  depends_on  = [module.secrets]
   project_id  = var.project_id
   name_prefix = local.prefix
   name        = "${local.prefix}-api"
@@ -259,7 +270,7 @@ module "lb_api" {
   region      = var.region
 
   cloud_run_service = module.cloudrun_api.service_id
-  domains           = [var.api_domain]
+  domains           = [var.api_domain, "tuuuur.api.florent-dubut.fr"]
 
   create_dns_records = var.create_dns_records
   dns_zone_name      = var.dns_zone_name
@@ -284,8 +295,9 @@ module "bastion" {
 
 # DNS OVH (optionnel - activé si ovh_domain est défini)
 module "ovh_dns_front" {
-  count  = var.ovh_domain != null ? 1 : 0
-  source = "../../modules/ovh_dns"
+  count      = var.ovh_domain != null ? 1 : 0
+  source     = "../../modules/ovh_dns"
+  depends_on = [module.lb_front]
 
   domain    = var.ovh_domain
   subdomain = trimsuffix(var.front_domain, ".${var.ovh_domain}") # Extrait "preprod.tuuuur" de "preprod.tuuuur.florent-dubut.fr"
@@ -293,10 +305,22 @@ module "ovh_dns_front" {
 }
 
 module "ovh_dns_api" {
-  count  = var.ovh_domain != null ? 1 : 0
-  source = "../../modules/ovh_dns"
+  count      = var.ovh_domain != null ? 1 : 0
+  source     = "../../modules/ovh_dns"
+  depends_on = [module.lb_api]
 
   domain    = var.ovh_domain
-  subdomain = trimsuffix(var.api_domain, ".${var.ovh_domain}") # Extrait "api.tuuuur" de "api.tuuuur.florent-dubut.fr"
+  subdomain = trimsuffix(var.api_domain, ".${var.ovh_domain}") # Extrait "preprod.tuuuur.api" de "preprod.tuuuur.api.florent-dubut.fr"
+  target    = module.lb_api.ip_address
+}
+
+# DNS pour l'API sans préfixe preprod (pour que le front puisse utiliser tuuuur.api)
+module "ovh_dns_api_prod_like" {
+  count      = var.ovh_domain != null ? 1 : 0
+  source     = "../../modules/ovh_dns"
+  depends_on = [module.lb_api]
+
+  domain    = var.ovh_domain
+  subdomain = "tuuuur.api"
   target    = module.lb_api.ip_address
 }
