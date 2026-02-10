@@ -17,19 +17,23 @@ variable "app_name" {
 }
 
 variable "front_image" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "api_image" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "front_domain" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "api_domain" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "create_dns_records" {
@@ -112,12 +116,14 @@ variable "db_user" {
 variable "db_password" {
   type      = string
   sensitive = true
+  default   = ""
 }
 
 variable "sql_root_password" {
   type        = string
   sensitive   = true
   description = "SQL Server root/admin password"
+  default     = ""
 }
 
 variable "sql_vm_zone" {
@@ -180,26 +186,31 @@ variable "jwt_key" {
   type        = string
   sensitive   = true
   description = "JWT signing key"
+  default     = ""
 }
 
 variable "google_client_id" {
   type        = string
   description = "Google OAuth Client ID"
+  default     = ""
 }
 
 variable "smtp_from_address" {
   type        = string
   description = "SMTP From email address"
+  default     = ""
 }
 
 variable "smtp_from_name" {
   type        = string
   description = "SMTP From display name"
+  default     = ""
 }
 
 variable "smtp_host" {
   type        = string
   description = "SMTP server address"
+  default     = ""
 }
 
 variable "smtp_port" {
@@ -211,12 +222,14 @@ variable "smtp_port" {
 variable "smtp_user" {
   type        = string
   description = "SMTP username"
+  default     = ""
 }
 
 variable "smtp_password" {
   type        = string
   sensitive   = true
   description = "SMTP password"
+  default     = ""
 }
 
 variable "run_db_migration" {
