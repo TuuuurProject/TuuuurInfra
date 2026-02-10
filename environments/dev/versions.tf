@@ -13,5 +13,9 @@ terraform {
       source  = "hashicorp/random"
       version = ">= 3.6.0"
     }
+    ovh = {
+      source  = "ovh/ovh"
+      version = "~> 0.35"
+    }
   }
 }

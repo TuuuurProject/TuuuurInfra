@@ -23,7 +23,6 @@ on:
     secrets:
       GCP_SA_KEY:
         required: true
-      # OVH DNS credentials (optional, comment out if not using OVH)
       OVH_APPLICATION_KEY:
         required: false
       OVH_APPLICATION_SECRET:
@@ -73,7 +72,6 @@ jobs:
       - name: Terraform Plan
         id: plan
         env:
-          # OVH DNS credentials (read from secrets)
           OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
           OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
           OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
@@ -94,7 +92,6 @@ jobs:
       - name: Terraform Apply
         id: apply
         env:
-          # OVH DNS credentials (read from secrets)
           OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
           OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
           OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
