@@ -24,23 +24,36 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Update secrets if provided
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Update secrets in GCP Secret Manager
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ENVIRONMENT: ${{ inputs.environment }}
           FRONT_IMAGE: ${{ inputs.front_image }}
           API_IMAGE: ${{ inputs.api_image }}
         run: |
-          ENV_UPPER=$(echo $ENVIRONMENT | tr '[:lower:]' '[:upper:]')
+          PROJECT_ID="tuuuur"
 
           if [ -n "$FRONT_IMAGE" ]; then
-            echo "Updating TF_VAR_FRONT_IMAGE_${ENV_UPPER}"
-            gh secret set "TF_VAR_FRONT_IMAGE_${ENV_UPPER}" --body "$FRONT_IMAGE"
+            echo "Updating front-image secret in GCP Secret Manager"
+            echo -n "$FRONT_IMAGE" | gcloud secrets versions add "webplat-${ENVIRONMENT}-front-image" \
+              --project="$PROJECT_ID" \
+              --data-file=-
+            echo "✅ front-image updated"
           fi
 
           if [ -n "$API_IMAGE" ]; then
-            echo "Updating TF_VAR_API_IMAGE_${ENV_UPPER}"
-            gh secret set "TF_VAR_API_IMAGE_${ENV_UPPER}" --body "$API_IMAGE"
+            echo "Updating api-image secret in GCP Secret Manager"
+            echo -n "$API_IMAGE" | gcloud secrets versions add "webplat-${ENVIRONMENT}-api-image" \
+              --project="$PROJECT_ID" \
+              --data-file=-
+            echo "✅ api-image updated"
           fi
 
       - name: Trigger Terraform deployment

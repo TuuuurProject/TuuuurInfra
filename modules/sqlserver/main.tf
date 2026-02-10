@@ -33,17 +33,19 @@ resource "google_sql_database_instance" "sql" {
 }
 
 resource "google_sql_database" "db" {
-  count    = local.use_cloudsql ? 1 : 0
-  name     = var.db_name
-  instance = google_sql_database_instance.sql[0].name
+  count      = local.use_cloudsql ? 1 : 0
+  name       = var.db_name
+  instance   = google_sql_database_instance.sql[0].name
+  depends_on = [google_sql_database_instance.sql]
 }
 
 resource "google_sql_user" "user" {
-  count    = local.use_cloudsql ? 1 : 0
-  name     = var.db_user
-  instance = google_sql_database_instance.sql[0].name
-  password = var.db_password
-  type     = "BUILT_IN"
+  count      = local.use_cloudsql ? 1 : 0
+  name       = var.db_user
+  instance   = google_sql_database_instance.sql[0].name
+  password   = var.db_password
+  type       = "BUILT_IN"
+  depends_on = [google_sql_database_instance.sql]
 }
 
 

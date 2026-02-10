@@ -75,5 +75,4 @@ id_rsa*
 *service-account*.json
 *.p12
 
-# Ignore generated documentation
-docs/generated/
+scripts/*

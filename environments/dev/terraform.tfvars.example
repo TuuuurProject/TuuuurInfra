@@ -61,12 +61,6 @@ labels = {
   owner = "platform-team"
 }
 
-# Bastion / IAP
-bastion_zone           = "europe-west9"
-bastion_machine_type   = "e2-micro"
-bastion_iap_members    = ["user:your-email@example.com"]
-bastion_oslogin_admins = ["user:your-email@example.com"]
-
 # API Configuration
 jwt_key            = "CHANGE_ME_JWT_SECRET_KEY_MIN_32_CHARS" # ⚠️ Minimum 32 caractères
 google_client_id   = "your-google-client-id.apps.googleusercontent.com"

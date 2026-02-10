@@ -21,7 +21,6 @@ ENV="preprod"
 APP_NAME="webplat"
 PREFIX="${APP_NAME}-${ENV}"
 NETWORK_NAME="${PREFIX}-vpc"
-BASTION_ZONE="europe-west9"
 
 # Compteurs pour la vérification
 TOTAL_CHECKS=0
@@ -243,16 +242,6 @@ for connector in $VPC_CONNECTORS; do
         gcloud compute networks vpc-access connectors delete $connector --region=${REGION} --quiet 2>/dev/null || true
     fi
 done
-
-# 3.7 - Compute Engine (Bastion)
-log_info "Nettoyage des VMs Compute Engine..."
-INSTANCES=$(gcloud compute instances list --filter="name~${PREFIX}" --format="csv[no-heading](name,zone)" 2>/dev/null || echo "")
-while IFS=',' read -r instance_name instance_zone; do
-    if [ -n "$instance_name" ]; then
-        log_info "  └─ VM: $instance_name in $instance_zone"
-        gcloud compute instances delete $instance_name --zone=$instance_zone --quiet 2>/dev/null || true
-    fi
-done <<< "$INSTANCES"
 
 # 3.8 - Disques persistants
 log_info "Nettoyage des disques persistants..."

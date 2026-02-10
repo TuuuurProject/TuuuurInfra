@@ -38,28 +38,11 @@ jobs:
     uses: ./.github/workflows/terraform-apply.yml
     with:
       environment: "prod"
+      project_id: "tuuuur"
+      env_name: "prod"
       terraform_version: "1.6.0"
     secrets:
       GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-      TF_VAR_project_id: ${{ secrets.TF_VAR_PROJECT_ID_PROD }}
-      TF_VAR_region: ${{ secrets.TF_VAR_REGION_PROD }}
-      TF_VAR_env: ${{ secrets.TF_VAR_ENV_PROD }}
-      TF_VAR_front_image: ${{ secrets.TF_VAR_FRONT_IMAGE_PROD }}
-      TF_VAR_api_image: ${{ secrets.TF_VAR_API_IMAGE_PROD }}
-      TF_VAR_front_domain: ${{ secrets.TF_VAR_FRONT_DOMAIN_PROD }}
-      TF_VAR_api_domain: ${{ secrets.TF_VAR_API_DOMAIN_PROD }}
-      TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD_PROD }}
-      TF_VAR_sql_root_password: ${{ secrets.TF_VAR_SQL_ROOT_PASSWORD_PROD }}
-      TF_VAR_jwt_key: ${{ secrets.TF_VAR_JWT_KEY_PROD }}
-      TF_VAR_google_client_id: ${{ secrets.TF_VAR_GOOGLE_CLIENT_ID_PROD }}
-      TF_VAR_smtp_from_address: ${{ secrets.TF_VAR_SMTP_FROM_ADDRESS_PROD }}
-      TF_VAR_smtp_from_name: ${{ secrets.TF_VAR_SMTP_FROM_NAME_PROD }}
-      TF_VAR_smtp_host: ${{ secrets.TF_VAR_SMTP_HOST_PROD }}
-      TF_VAR_smtp_user: ${{ secrets.TF_VAR_SMTP_USER_PROD }}
-      TF_VAR_smtp_password: ${{ secrets.TF_VAR_SMTP_PASSWORD_PROD }}
-      TF_VAR_ovh_domain: ${{ secrets.TF_VAR_OVH_DOMAIN_PROD }}
-      TF_VAR_ovh_application_key: ${{ secrets.TF_VAR_OVH_APPLICATION_KEY_PROD }}
-      TF_VAR_ovh_application_secret: ${{ secrets.TF_VAR_OVH_APPLICATION_SECRET_PROD }}
-      TF_VAR_ovh_consumer_key: ${{ secrets.TF_VAR_OVH_CONSUMER_KEY_PROD }}
-      TF_VAR_db_migration_image: ${{ secrets.TF_VAR_DB_MIGRATION_IMAGE_PROD }}
-      TF_VAR_bastion_iap_members: ${{ secrets.TF_VAR_BASTION_IAP_MEMBERS_PROD }}
+      OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+      OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+      OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}

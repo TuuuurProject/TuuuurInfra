@@ -87,9 +87,26 @@ jobs:
       - name: Terraform Plan
         id: plan
         env:
-          TF_VAR_project_id: ${{ secrets[format('TF_VAR_PROJECT_ID_{0}', matrix.environment == 'preprod' && 'PREPROD' || matrix.environment == 'prod' && 'PROD' || 'DEV')] }}
+          # OVH DNS credentials (read from secrets)
+          OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+          OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
         run: |
-          terraform plan -no-color -input=false
+          # Set project_id based on environment
+          if [ "${{ matrix.environment }}" = "preprod" ]; then
+            PROJECT_ID="tuuuur"
+            ENV_NAME="preprod"
+          elif [ "${{ matrix.environment }}" = "prod" ]; then
+            PROJECT_ID="tuuuur"
+            ENV_NAME="prod"
+          else
+            PROJECT_ID="tuuuur"
+            ENV_NAME="dev"
+          fi
+
+          terraform plan -no-color -input=false \
+            -var="project_id=$PROJECT_ID" \
+            -var="env=$ENV_NAME"
         continue-on-error: true
 
       - name: Comment PR with Plan

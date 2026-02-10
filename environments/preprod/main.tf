@@ -6,6 +6,34 @@ locals {
   })
 }
 
+module "gcp_secrets" {
+  source      = "../../modules/secrets_datasource"
+  project_id  = var.project_id
+  name_prefix = local.prefix
+
+  secret_names = [
+    "region",
+    "db-password",
+    "sql-root-password",
+    "jwt-key",
+    "google-client-id",
+    "smtp-from-address",
+    "smtp-from-name",
+    "smtp-host",
+    "smtp-user",
+    "smtp-password",
+    "front-image",
+    "api-image",
+    "front-domain",
+    "api-domain",
+    "db-migration-image",
+    "ovh-domain",
+    "ovh-application-key",
+    "ovh-application-secret",
+    "ovh-consumer-key"
+  ]
+}
+
 module "project_services" {
   source     = "../../modules/project_services"
   project_id = var.project_id
@@ -30,7 +58,7 @@ module "network" {
   subnets = {
     connector = {
       cidr                  = var.connector_cidr
-      region                = var.region
+      region                = module.gcp_secrets.config["region"]
       private_google_access = true
     }
   }
@@ -43,7 +71,7 @@ module "vpc_connector" {
   source      = "../../modules/vpc_connector"
   project_id  = var.project_id
   name_prefix = local.prefix
-  region      = var.region
+  region      = module.gcp_secrets.config["region"]
 
   subnet_name = module.network.subnet_names["connector"]
 
@@ -65,7 +93,7 @@ module "secrets" {
 
   create_versions = true
   secret_values = {
-    db-password = var.db_password
+    db-password = module.gcp_secrets.secrets["db-password"]
     redis-auth  = var.redis_auth ? module.redis.auth_string : "unused"
   }
 
@@ -79,7 +107,7 @@ module "redis" {
   source      = "../../modules/redis"
   project_id  = var.project_id
   name_prefix = local.prefix
-  region      = var.region
+  region      = module.gcp_secrets.config["region"]
   network_id  = module.network.network_id
 
   tier                    = var.redis_tier
@@ -96,7 +124,7 @@ module "sql" {
   depends_on  = [module.network, module.vpc_connector]
   project_id  = var.project_id
   name_prefix = local.prefix
-  region      = var.region
+  region      = module.gcp_secrets.config["region"]
   labels      = local.labels
 
   mode              = var.sql_mode
@@ -111,11 +139,11 @@ module "sql" {
 
   db_name       = var.db_name
   db_user       = var.db_user
-  db_password   = var.db_password
-  root_password = var.sql_root_password
+  db_password   = module.gcp_secrets.secrets["db-password"]
+  root_password = module.gcp_secrets.secrets["sql-root-password"]
 
   run_migration    = var.run_db_migration
-  migration_image  = var.db_migration_image
+  migration_image  = module.gcp_secrets.config["db-migration-image"]
   vpc_connector_id = module.vpc_connector.id
 
   service_networking_connection = module.network.service_networking_connection
@@ -126,10 +154,10 @@ module "cloudrun_front" {
   project_id  = var.project_id
   name_prefix = local.prefix
   name        = "${local.prefix}-front"
-  region      = var.region
+  region      = module.gcp_secrets.config["region"]
   labels      = local.labels
 
-  image                 = var.front_image
+  image                 = module.gcp_secrets.config["front-image"]
   service_account_email = google_service_account.run_front.email
   ingress               = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
   default_uri_disabled  = true
@@ -147,7 +175,7 @@ module "cloudrun_front" {
 
 resource "google_cloud_run_v2_service_iam_member" "front_invoker" {
   project  = var.project_id
-  location = var.region
+  location = module.gcp_secrets.config["region"]
   name     = module.cloudrun_front.service_id
   role     = "roles/run.invoker"
   member   = "allUsers"
@@ -155,7 +183,7 @@ resource "google_cloud_run_v2_service_iam_member" "front_invoker" {
 
 resource "google_cloud_run_v2_service_iam_member" "api_invoker" {
   project  = var.project_id
-  location = var.region
+  location = module.gcp_secrets.config["region"]
   name     = module.cloudrun_api.service_id
   role     = "roles/run.invoker"
   member   = "allUsers"
@@ -167,10 +195,10 @@ module "cloudrun_api" {
   project_id  = var.project_id
   name_prefix = local.prefix
   name        = "${local.prefix}-api"
-  region      = var.region
+  region      = module.gcp_secrets.config["region"]
   labels      = local.labels
 
-  image                 = var.api_image
+  image                 = module.gcp_secrets.config["api-image"]
   service_account_email = google_service_account.run_api.email
 
   ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
@@ -190,32 +218,32 @@ module "cloudrun_api" {
   vpc_egress       = "PRIVATE_RANGES_ONLY"
 
   env_vars = {
-    "ConnectionStrings__Tuuuur" = "Server=${module.sql.private_ip_address},1433;Database=${var.db_name};User Id=${var.db_user};Password=${var.db_password};TrustServerCertificate=True;"
+    "ConnectionStrings__Tuuuur" = "Server=${module.sql.private_ip_address},1433;Database=${var.db_name};User Id=${var.db_user};Password=${module.gcp_secrets.secrets["db-password"]};TrustServerCertificate=True;"
 
-    "ConnectionStrings__Redis" = var.redis_auth ? "${module.redis.host}:${module.redis.port},password=${var.db_password}" : "${module.redis.host}:${module.redis.port}"
+    "ConnectionStrings__Redis" = var.redis_auth ? "${module.redis.host}:${module.redis.port},password=${module.gcp_secrets.secrets["db-password"]}" : "${module.redis.host}:${module.redis.port}"
 
-    "JwtSettings__Key" = var.jwt_key
+    "JwtSettings__Key" = module.gcp_secrets.secrets["jwt-key"]
 
-    "Authentification__Google__ClientId" = var.google_client_id
+    "Authentification__Google__ClientId" = module.gcp_secrets.secrets["google-client-id"]
 
-    "SmtpEmailConfiguration__FromAddress"  = var.smtp_from_address
-    "SmtpEmailConfiguration__FromName"     = var.smtp_from_name
-    "SmtpEmailConfiguration__SmtpAddress"  = var.smtp_host
+    "SmtpEmailConfiguration__FromAddress"  = module.gcp_secrets.secrets["smtp-from-address"]
+    "SmtpEmailConfiguration__FromName"     = module.gcp_secrets.secrets["smtp-from-name"]
+    "SmtpEmailConfiguration__SmtpAddress"  = module.gcp_secrets.secrets["smtp-host"]
     "SmtpEmailConfiguration__SmtpPort"     = tostring(var.smtp_port)
-    "SmtpEmailConfiguration__SmtpLogin"    = var.smtp_user
-    "SmtpEmailConfiguration__SmtpPassword" = var.smtp_password
+    "SmtpEmailConfiguration__SmtpLogin"    = module.gcp_secrets.secrets["smtp-user"]
+    "SmtpEmailConfiguration__SmtpPassword" = module.gcp_secrets.secrets["smtp-password"]
   }
 
   secret_env_vars = [
     {
       name    = "DB_PASSWORD"
       secret  = module.secrets.secret_ids["db-password"]
-      version = "1"
+      version = "latest"
     },
     {
       name    = "REDIS_AUTH"
       secret  = module.secrets.secret_ids["redis-auth"]
-      version = "1"
+      version = "latest"
     }
   ]
 }
@@ -224,10 +252,10 @@ module "lb_front" {
   source      = "../../modules/lb_serverless"
   project_id  = var.project_id
   name_prefix = "${local.prefix}-front"
-  region      = var.region
+  region      = module.gcp_secrets.config["region"]
 
   cloud_run_service = module.cloudrun_front.service_id
-  domains           = [var.front_domain]
+  domains           = [module.gcp_secrets.config["front-domain"]]
 
   create_dns_records = var.create_dns_records
   dns_zone_name      = var.dns_zone_name
@@ -237,41 +265,41 @@ module "lb_api" {
   source      = "../../modules/lb_serverless"
   project_id  = var.project_id
   name_prefix = "${local.prefix}-api"
-  region      = var.region
+  region      = module.gcp_secrets.config["region"]
 
   cloud_run_service = module.cloudrun_api.service_id
-  domains           = [var.api_domain, "tuuuur.api.florent-dubut.fr"]
+  domains           = [module.gcp_secrets.config["api-domain"], "tuuuur.api.florent-dubut.fr"]
 
   create_dns_records = var.create_dns_records
   dns_zone_name      = var.dns_zone_name
 }
 
 module "ovh_dns_front" {
-  count      = var.ovh_domain != null ? 1 : 0
+  count      = try(module.gcp_secrets.config["ovh-domain"], null) != null && module.gcp_secrets.config["ovh-domain"] != "" ? 1 : 0
   source     = "../../modules/ovh_dns"
   depends_on = [module.lb_front]
 
-  domain    = var.ovh_domain
-  subdomain = trimsuffix(var.front_domain, ".${var.ovh_domain}")
+  domain    = module.gcp_secrets.config["ovh-domain"]
+  subdomain = trimsuffix(module.gcp_secrets.config["front-domain"], ".${module.gcp_secrets.config["ovh-domain"]}")
   target    = module.lb_front.ip_address
 }
 
 module "ovh_dns_api" {
-  count      = var.ovh_domain != null ? 1 : 0
+  count      = try(module.gcp_secrets.config["ovh-domain"], null) != null && module.gcp_secrets.config["ovh-domain"] != "" ? 1 : 0
   source     = "../../modules/ovh_dns"
   depends_on = [module.lb_api]
 
-  domain    = var.ovh_domain
-  subdomain = trimsuffix(var.api_domain, ".${var.ovh_domain}")
+  domain    = module.gcp_secrets.config["ovh-domain"]
+  subdomain = trimsuffix(module.gcp_secrets.config["api-domain"], ".${module.gcp_secrets.config["ovh-domain"]}")
   target    = module.lb_api.ip_address
 }
 
 module "ovh_dns_api_prod_like" {
-  count      = var.ovh_domain != null ? 1 : 0
+  count      = try(module.gcp_secrets.config["ovh-domain"], null) != null && module.gcp_secrets.config["ovh-domain"] != "" ? 1 : 0
   source     = "../../modules/ovh_dns"
   depends_on = [module.lb_api]
 
-  domain    = var.ovh_domain
+  domain    = module.gcp_secrets.config["ovh-domain"]
   subdomain = "tuuuur.api"
   target    = module.lb_api.ip_address
 }

@@ -170,11 +170,6 @@ variable "labels" {
   default = {}
 }
 
-variable "bastion_zone" {
-  type    = string
-  default = "europe-west9"
-}
-
 variable "jwt_key" {
   type        = string
   sensitive   = true
