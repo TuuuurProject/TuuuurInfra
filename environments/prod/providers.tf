@@ -8,6 +8,14 @@ provider "google-beta" {
   region  = var.region
 }
 
+# Provider OVH - uses environment variables:
+# - OVH_APPLICATION_KEY
+# - OVH_APPLICATION_SECRET
+# - OVH_CONSUMER_KEY
+provider "ovh" {
+  endpoint = "ovh-eu"
+}
+
 data "google_project" "this" {
   project_id = var.project_id
 }
