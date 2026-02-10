@@ -28,16 +28,6 @@ module "network" {
   labels      = local.labels
 
   subnets = {
-    app = {
-      cidr                  = var.app_subnet_cidr
-      region                = var.region
-      private_google_access = true
-    }
-    admin = {
-      cidr                  = var.admin_subnet_cidr
-      region                = var.region
-      private_google_access = true
-    }
     connector = {
       cidr                  = var.connector_cidr
       region                = var.region
@@ -45,7 +35,6 @@ module "network" {
     }
   }
 
-  bastion_network_tags                 = ["${local.prefix}-bastion"]
   enable_private_service_access        = true
   private_service_access_prefix_length = 16
 }
@@ -255,22 +244,6 @@ module "lb_api" {
 
   create_dns_records = var.create_dns_records
   dns_zone_name      = var.dns_zone_name
-}
-
-module "bastion" {
-  source       = "../../modules/bastion"
-  project_id   = var.project_id
-  name_prefix  = local.prefix
-  zone         = var.bastion_zone
-  machine_type = var.bastion_machine_type
-  labels       = local.labels
-
-  network_id       = module.network.network_id
-  subnet_self_link = module.network.subnet_self_links["admin"]
-  network_tags     = ["${local.prefix}-bastion"]
-
-  iap_members    = var.bastion_iap_members
-  oslogin_admins = var.bastion_oslogin_admins
 }
 
 module "ovh_dns_front" {

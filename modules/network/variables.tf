@@ -21,12 +21,6 @@ variable "subnets" {
   }))
 }
 
-variable "bastion_network_tags" {
-  type        = list(string)
-  default     = []
-  description = "Network tags ciblés par la règle firewall IAP SSH."
-}
-
 variable "enable_private_service_access" {
   type    = bool
   default = true

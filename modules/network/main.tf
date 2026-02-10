@@ -16,25 +16,6 @@ resource "google_compute_subnetwork" "subnets" {
   description              = try(each.value.description, null)
 }
 
-resource "google_compute_firewall" "iap_ssh" {
-  name      = "${var.name_prefix}-allow-iap-ssh"
-  network   = google_compute_network.vpc.id
-  direction = "INGRESS"
-  priority  = 1000
-
-  source_ranges = ["35.235.240.0/20"]
-  target_tags   = var.bastion_network_tags
-
-  allow {
-    protocol = "tcp"
-    ports    = ["22"]
-  }
-
-  log_config {
-    metadata = "INCLUDE_ALL_METADATA"
-  }
-}
-
 resource "google_compute_global_address" "psa_range" {
   count         = var.enable_private_service_access ? 1 : 0
   name          = "${var.name_prefix}-psa"

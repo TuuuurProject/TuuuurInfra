@@ -69,16 +69,6 @@ variable "ovh_consumer_key" {
   sensitive   = true
 }
 
-variable "app_subnet_cidr" {
-  type    = string
-  default = "10.10.0.0/24"
-}
-
-variable "admin_subnet_cidr" {
-  type    = string
-  default = "10.20.0.0/24"
-}
-
 variable "connector_cidr" {
   type    = string
   default = "10.30.0.0/28"
@@ -210,23 +200,6 @@ variable "labels" {
 variable "bastion_zone" {
   type    = string
   default = "europe-west9"
-}
-
-variable "bastion_machine_type" {
-  type    = string
-  default = "e2-micro"
-}
-
-variable "bastion_iap_members" {
-  type        = list(string)
-  default     = []
-  description = "IAM members autorisés IAP TCP (ex: user:alice@example.com, group:ops@example.com)"
-}
-
-variable "bastion_oslogin_admins" {
-  type        = list(string)
-  default     = []
-  description = "IAM members avec OS Admin Login (optionnel) : user:/group:"
 }
 
 variable "jwt_key" {
