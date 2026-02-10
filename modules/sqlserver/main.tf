@@ -2,7 +2,6 @@ locals {
   use_cloudsql = var.mode == "cloudsql"
 }
 
-# -------- Cloud SQL for SQL Server (Private IP) --------
 resource "google_sql_database_instance" "sql" {
   count            = local.use_cloudsql ? 1 : 0
   name             = "${var.name_prefix}-sql"
@@ -10,7 +9,6 @@ resource "google_sql_database_instance" "sql" {
   database_version = var.database_version
   root_password    = var.root_password
 
-  # Force destruction avant Service Networking Connection
   depends_on = [var.service_networking_connection]
 
   settings {
@@ -48,9 +46,7 @@ resource "google_sql_user" "user" {
   type     = "BUILT_IN"
 }
 
-# -------- Migration automatique via Cloud Run Job --------
 
-# Service Account pour les Cloud Run Jobs
 resource "google_service_account" "db_setup_job" {
   count        = local.use_cloudsql && var.run_migration && var.migration_image != "" ? 1 : 0
   account_id   = "${var.name_prefix}-db-setup"
@@ -58,8 +54,6 @@ resource "google_service_account" "db_setup_job" {
   project      = var.project_id
 }
 
-# Cloud Run Job pour configurer l'utilisateur dans la base de données
-# Ce job utilise le compte root (sqlserver) pour créer l'utilisateur avec les bonnes permissions
 resource "google_cloud_run_v2_job" "db_setup" {
   count    = local.use_cloudsql && var.run_migration && var.migration_image != "" ? 1 : 0
   provider = google-beta
@@ -76,11 +70,10 @@ resource "google_cloud_run_v2_job" "db_setup" {
     task_count = 1
 
     template {
-      timeout         = "600s" # 10 minutes max
+      timeout         = "600s"
       service_account = google_service_account.db_setup_job[0].email
       max_retries     = 1
 
-      # VPC Access pour connexion privée à Cloud SQL
       dynamic "vpc_access" {
         for_each = var.vpc_connector_id != null ? [1] : []
         content {
@@ -90,7 +83,6 @@ resource "google_cloud_run_v2_job" "db_setup" {
       }
 
       containers {
-        # Utiliser l'image Python avec pymssql pour exécuter les commandes SQL
         image = "python:3.11-slim"
 
         resources {
@@ -100,7 +92,6 @@ resource "google_cloud_run_v2_job" "db_setup" {
           }
         }
 
-        # Script Python pour configurer l'utilisateur
         command = ["/bin/bash"]
         args = [
           "-c",
@@ -108,14 +99,11 @@ resource "google_cloud_run_v2_job" "db_setup" {
             set -e
             echo "Starting database user setup..."
             
-            # Installer pymssql
             pip install --quiet pymssql
             
-            # Attendre que la base soit accessible
             echo "Waiting for database to be ready..."
             sleep 10
             
-            # Script Python pour configurer l'utilisateur
             python3 << 'PYTHON'
 import pymssql
 import os
@@ -130,7 +118,6 @@ def setup_user():
     print(f"Connecting to {db_server} as sqlserver...")
     
     try:
-        # Connexion à master avec le compte root
         conn = pymssql.connect(
             server=db_server,
             user='sqlserver',
@@ -139,7 +126,6 @@ def setup_user():
         )
         cursor = conn.cursor()
         
-        # Vérifier que le login existe
         print(f"Checking if login {db_user} exists...")
         cursor.execute(f"SELECT name FROM sys.server_principals WHERE name = '{db_user}'")
         if not cursor.fetchone():
@@ -147,11 +133,9 @@ def setup_user():
             sys.exit(1)
         print(f"Login {db_user} exists - OK")
         
-        # Fermer la connexion à master
         cursor.close()
         conn.close()
         
-        # Connexion à la base de données cible
         print(f"Connecting to database {db_name}...")
         conn = pymssql.connect(
             server=db_server,
@@ -161,7 +145,6 @@ def setup_user():
         )
         cursor = conn.cursor()
         
-        # Créer l'utilisateur dans la base de données s'il n'existe pas
         print(f"Creating user {db_user} in database {db_name}...")
         cursor.execute(f"SELECT name FROM sys.database_principals WHERE name = '{db_user}'")
         if not cursor.fetchone():
@@ -170,11 +153,9 @@ def setup_user():
         else:
             print(f"User {db_user} already exists")
         
-        # Ajouter au rôle db_owner
         print(f"Adding {db_user} to db_owner role...")
         cursor.execute(f"ALTER ROLE db_owner ADD MEMBER [{db_user}]")
         
-        # Permissions explicites
         print(f"Granting explicit permissions to {db_user}...")
         cursor.execute(f"GRANT CONNECT TO [{db_user}]")
         cursor.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE TO [{db_user}]")
@@ -232,7 +213,6 @@ PYTHON
   ]
 }
 
-# Service Account pour le Cloud Run Job de migration
 resource "google_service_account" "migration_job" {
   count        = local.use_cloudsql && var.run_migration && var.migration_image != "" ? 1 : 0
   account_id   = "${var.name_prefix}-db-migration"
@@ -240,7 +220,6 @@ resource "google_service_account" "migration_job" {
   project      = var.project_id
 }
 
-# Cloud Run Job pour exécuter la migration SQL (sqlpackage DACPAC)
 resource "google_cloud_run_v2_job" "db_migration" {
   count    = local.use_cloudsql && var.run_migration && var.migration_image != "" ? 1 : 0
   provider = google-beta
@@ -257,12 +236,11 @@ resource "google_cloud_run_v2_job" "db_migration" {
     task_count = 1
 
     template {
-      timeout         = "1800s" # 30 minutes max
+      timeout         = "1800s"
       service_account = google_service_account.migration_job[0].email
 
       max_retries = 1
 
-      # VPC Access pour connexion privée à Cloud SQL
       dynamic "vpc_access" {
         for_each = var.vpc_connector_id != null ? [1] : []
         content {
@@ -281,8 +259,6 @@ resource "google_cloud_run_v2_job" "db_migration" {
           }
         }
 
-        # Variables d'environnement pour sqlpackage
-        # Utiliser le compte root pour éviter les problèmes de DROP USER
         env {
           name  = "DB_SERVER"
           value = google_sql_database_instance.sql[0].private_ip_address
@@ -308,7 +284,7 @@ resource "google_cloud_run_v2_job" "db_migration" {
 
   lifecycle {
     ignore_changes = [
-      template[0].template[0].containers[0].image, # Ignorer les changements d'image après création
+      template[0].template[0].containers[0].image,
     ]
   }
 
@@ -318,7 +294,6 @@ resource "google_cloud_run_v2_job" "db_migration" {
   ]
 }
 
-# Exécution automatique : Setup puis Migration
 resource "null_resource" "run_db_setup_and_migration" {
   count = local.use_cloudsql && var.run_migration && var.migration_image != "" ? 1 : 0
 

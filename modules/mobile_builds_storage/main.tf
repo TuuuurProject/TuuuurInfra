@@ -33,14 +33,12 @@ resource "google_storage_bucket" "mobile_builds" {
   }
 }
 
-# IAM binding to allow public read access
 resource "google_storage_bucket_iam_member" "public_read" {
   bucket = google_storage_bucket.mobile_builds.name
   role   = "roles/storage.objectViewer"
   member = "allUsers"
 }
 
-# Create folder structure (using objects with trailing slashes)
 resource "google_storage_bucket_object" "android_folder" {
   name    = "mobile/android/.keep"
   content = "# Android builds folder"

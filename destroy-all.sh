@@ -21,7 +21,7 @@ ENV="preprod"
 APP_NAME="webplat"
 PREFIX="${APP_NAME}-${ENV}"
 NETWORK_NAME="${PREFIX}-vpc"
-BASTION_ZONE="europe-west9-b"
+BASTION_ZONE="europe-west9"
 
 # Compteurs pour la vérification
 TOTAL_CHECKS=0

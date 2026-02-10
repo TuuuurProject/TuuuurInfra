@@ -6,9 +6,9 @@ on:
       - release
       - master
     paths:
-      - 'environments/**'
-      - 'modules/**'
-      - '.github/workflows/**'
+      - "environments/**"
+      - "modules/**"
+      - ".github/workflows/**"
 
 jobs:
   detect-environments:
@@ -26,22 +26,22 @@ jobs:
         run: |
           # Get changed files
           CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
-          
+
           ENVS="[]"
-          
+
           # Check each environment
           if echo "$CHANGED_FILES" | grep -q "environments/preprod\|modules/"; then
             ENVS=$(echo $ENVS | jq -c '. + ["preprod"]')
           fi
-          
+
           if echo "$CHANGED_FILES" | grep -q "environments/prod\|modules/"; then
             ENVS=$(echo $ENVS | jq -c '. + ["prod"]')
           fi
-          
+
           if echo "$CHANGED_FILES" | grep -q "environments/dev\|modules/"; then
             ENVS=$(echo $ENVS | jq -c '. + ["dev"]')
           fi
-          
+
           echo "environments=$ENVS" >> $GITHUB_OUTPUT
           echo "Detected environments: $ENVS"
 
@@ -52,11 +52,11 @@ jobs:
     strategy:
       matrix:
         environment: ${{ fromJson(needs.detect-environments.outputs.environments) }}
-    
+
     defaults:
       run:
         working-directory: environments/${{ matrix.environment }}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -101,17 +101,17 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const output = `#### Terraform Plan for \`${{ matrix.environment }}\` 📝
-            
+
             <details><summary>Show Plan</summary>
-            
+
             \`\`\`terraform
             ${process.env.PLAN}
             \`\`\`
-            
+
             </details>
-            
+
             *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

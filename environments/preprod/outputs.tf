@@ -12,7 +12,6 @@ output "sql_instance_name" { value = module.sql.instance_name }
 output "bastion_name" { value = module.bastion.name }
 output "bastion_zone" { value = var.bastion_zone }
 
-# Database Migration
 output "db_migration_job_name" {
   description = "Nom du Cloud Run Job de migration de base de données"
   value       = module.sql.migration_job_name

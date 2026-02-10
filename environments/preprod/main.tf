@@ -11,7 +11,6 @@ module "project_services" {
   project_id = var.project_id
 }
 
-# Service Accounts Cloud Run (minimal)
 resource "google_service_account" "run_front" {
   account_id   = "${local.prefix}-front"
   display_name = "${local.prefix} Cloud Run Front"
@@ -51,7 +50,6 @@ module "network" {
   private_service_access_prefix_length = 16
 }
 
-# Serverless VPC Access connector (pour API)
 module "vpc_connector" {
   source      = "../../modules/vpc_connector"
   project_id  = var.project_id
@@ -65,7 +63,6 @@ module "vpc_connector" {
   max_instances = 3
 }
 
-# Secrets (création des secrets + IAM)
 module "secrets" {
   source      = "../../modules/secrets"
   project_id  = var.project_id
@@ -77,21 +74,18 @@ module "secrets" {
     redis-auth  = { labels = local.labels }
   }
 
-  # ⚠️ Optionnel: laisser Terraform créer des versions avec des valeurs (les valeurs seront dans le state).
   create_versions = true
   secret_values = {
     db-password = var.db_password
-    redis-auth  = var.redis_auth ? module.redis.auth_string : "unused" # exemple: réutilise, à remplacer
+    redis-auth  = var.redis_auth ? module.redis.auth_string : "unused"
   }
 
-  # Runtime SA : accès lecture secrets nécessaires
   accessors = {
     db-password = ["serviceAccount:${google_service_account.run_api.email}"]
     redis-auth  = ["serviceAccount:${google_service_account.run_api.email}"]
   }
 }
 
-# Redis
 module "redis" {
   source      = "../../modules/redis"
   project_id  = var.project_id
@@ -102,14 +96,12 @@ module "redis" {
   tier                    = var.redis_tier
   memory_size_gb          = var.redis_memory_gb
   auth_enabled            = var.redis_auth
-  transit_encryption_mode = "DISABLED" # ou "SERVER_AUTHENTICATION" si supporté et requis
+  transit_encryption_mode = "DISABLED"
   labels                  = local.labels
 
-  # Dépendance pour ordre de destruction correct
   service_networking_connection = module.network.service_networking_connection
 }
 
-# SQL Server (Cloud SQL privé par défaut, VM fallback possible)
 module "sql" {
   source      = "../../modules/sqlserver"
   depends_on  = [module.network, module.vpc_connector]
@@ -122,7 +114,6 @@ module "sql" {
   network_id        = module.network.network_id
   network_self_link = module.network.network_self_link
 
-  # Cloud SQL
   database_version  = var.cloudsql_sqlserver_version
   tier              = var.cloudsql_tier
   disk_size_gb      = var.cloudsql_disk_gb
@@ -134,16 +125,13 @@ module "sql" {
   db_password   = var.db_password
   root_password = var.sql_root_password
 
-  # Migration automatique via Cloud Run Job
   run_migration    = var.run_db_migration
   migration_image  = var.db_migration_image
   vpc_connector_id = module.vpc_connector.id
 
-  # Dépendance pour ordre de destruction correct
   service_networking_connection = module.network.service_networking_connection
 }
 
-# Cloud Run - Front (sans VPC)
 module "cloudrun_front" {
   source      = "../../modules/cloudrun_service"
   project_id  = var.project_id
@@ -168,22 +156,22 @@ module "cloudrun_front" {
   concurrency   = var.front_concurrency
 }
 
-# IAM pour permettre au Load Balancer d'appeler les services Cloud Run
-resource "google_cloud_run_service_iam_member" "front_invoker" {
-  service  = module.cloudrun_front.service_id
+resource "google_cloud_run_v2_service_iam_member" "front_invoker" {
+  project  = var.project_id
   location = var.region
+  name     = module.cloudrun_front.service_id
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
-resource "google_cloud_run_service_iam_member" "api_invoker" {
-  service  = module.cloudrun_api.service_id
+resource "google_cloud_run_v2_service_iam_member" "api_invoker" {
+  project  = var.project_id
   location = var.region
+  name     = module.cloudrun_api.service_id
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
-# Cloud Run - API (avec VPC)
 module "cloudrun_api" {
   source      = "../../modules/cloudrun_service"
   depends_on  = [module.secrets]
@@ -213,19 +201,14 @@ module "cloudrun_api" {
   vpc_egress       = "PRIVATE_RANGES_ONLY"
 
   env_vars = {
-    # Database Connection String
     "ConnectionStrings__Tuuuur" = "Server=${module.sql.private_ip_address},1433;Database=${var.db_name};User Id=${var.db_user};Password=${var.db_password};TrustServerCertificate=True;"
 
-    # Redis Connection String
     "ConnectionStrings__Redis" = var.redis_auth ? "${module.redis.host}:${module.redis.port},password=${var.db_password}" : "${module.redis.host}:${module.redis.port}"
 
-    # JWT Settings
     "JwtSettings__Key" = var.jwt_key
 
-    # Google Authentication
     "Authentification__Google__ClientId" = var.google_client_id
 
-    # SMTP Configuration
     "SmtpEmailConfiguration__FromAddress"  = var.smtp_from_address
     "SmtpEmailConfiguration__FromName"     = var.smtp_from_name
     "SmtpEmailConfiguration__SmtpAddress"  = var.smtp_host
@@ -240,7 +223,6 @@ module "cloudrun_api" {
       secret  = module.secrets.secret_ids["db-password"]
       version = "1"
     },
-    # optionnel
     {
       name    = "REDIS_AUTH"
       secret  = module.secrets.secret_ids["redis-auth"]
@@ -249,7 +231,6 @@ module "cloudrun_api" {
   ]
 }
 
-# Load Balancers (2) — Serverless NEG vers Cloud Run
 module "lb_front" {
   source      = "../../modules/lb_serverless"
   project_id  = var.project_id
@@ -276,7 +257,6 @@ module "lb_api" {
   dns_zone_name      = var.dns_zone_name
 }
 
-# Bastion (IAP)
 module "bastion" {
   source       = "../../modules/bastion"
   project_id   = var.project_id
@@ -293,14 +273,13 @@ module "bastion" {
   oslogin_admins = var.bastion_oslogin_admins
 }
 
-# DNS OVH (optionnel - activé si ovh_domain est défini)
 module "ovh_dns_front" {
   count      = var.ovh_domain != null ? 1 : 0
   source     = "../../modules/ovh_dns"
   depends_on = [module.lb_front]
 
   domain    = var.ovh_domain
-  subdomain = trimsuffix(var.front_domain, ".${var.ovh_domain}") # Extrait "preprod.tuuuur" de "preprod.tuuuur.florent-dubut.fr"
+  subdomain = trimsuffix(var.front_domain, ".${var.ovh_domain}")
   target    = module.lb_front.ip_address
 }
 
@@ -310,11 +289,10 @@ module "ovh_dns_api" {
   depends_on = [module.lb_api]
 
   domain    = var.ovh_domain
-  subdomain = trimsuffix(var.api_domain, ".${var.ovh_domain}") # Extrait "preprod.tuuuur.api" de "preprod.tuuuur.api.florent-dubut.fr"
+  subdomain = trimsuffix(var.api_domain, ".${var.ovh_domain}")
   target    = module.lb_api.ip_address
 }
 
-# DNS pour l'API sans préfixe preprod (pour que le front puisse utiliser tuuuur.api)
 module "ovh_dns_api_prod_like" {
   count      = var.ovh_domain != null ? 1 : 0
   source     = "../../modules/ovh_dns"

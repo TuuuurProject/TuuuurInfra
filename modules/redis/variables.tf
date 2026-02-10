@@ -41,7 +41,7 @@ variable "auth_enabled" {
 
 variable "transit_encryption_mode" {
   type    = string
-  default = "DISABLED" # ou SERVER_AUTHENTICATION
+  default = "DISABLED"
 }
 
 variable "service_networking_connection" {

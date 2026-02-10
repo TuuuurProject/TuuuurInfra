@@ -5,17 +5,17 @@ on:
     branches:
       - master
     paths:
-      - 'environments/prod/**'
-      - 'modules/**'
-      - '.github/workflows/cd-prod.yml'
-      - '.github/workflows/terraform-apply.yml'
+      - "environments/prod/**"
+      - "modules/**"
+      - ".github/workflows/cd-prod.yml"
+      - ".github/workflows/terraform-apply.yml"
 
   workflow_dispatch:
     inputs:
       confirm:
         description: 'Type "deploy-production" to confirm deployment'
         required: true
-        default: 'no'
+        default: "no"
 
 jobs:
   check-confirmation:

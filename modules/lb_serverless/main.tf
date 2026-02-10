@@ -2,7 +2,6 @@ resource "google_compute_global_address" "ip" {
   name = "${var.name_prefix}-lb-ip"
 }
 
-# Un certificat SSL par domaine (Google ne permet pas de mettre à jour un certificat en place)
 resource "google_compute_managed_ssl_certificate" "certs" {
   for_each = toset(var.domains)
 
@@ -63,7 +62,6 @@ resource "google_compute_global_forwarding_rule" "https" {
   target                = google_compute_target_https_proxy.https.id
 }
 
-# HTTP -> HTTPS redirect
 resource "google_compute_url_map" "http_redirect" {
   name = "${var.name_prefix}-http-redirect"
   default_url_redirect {
@@ -86,7 +84,6 @@ resource "google_compute_global_forwarding_rule" "http" {
   target                = google_compute_target_http_proxy.http.id
 }
 
-# DNS A record(s) optionnel (Cloud DNS zone existante)
 data "google_dns_managed_zone" "zone" {
   count = var.create_dns_records ? 1 : 0
   name  = var.dns_zone_name

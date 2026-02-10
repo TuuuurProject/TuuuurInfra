@@ -19,7 +19,6 @@ resource "google_compute_instance" "bastion" {
 
   network_interface {
     subnetwork = var.subnet_self_link
-    # pas d'access_config => pas d'IP publique
   }
 
   service_account {
@@ -40,7 +39,6 @@ resource "google_compute_instance" "bastion" {
   labels = var.labels
 }
 
-# IAP TCP forwarding access
 resource "google_project_iam_member" "iap_access" {
   for_each = toset(var.iap_members)
   project  = var.project_id
@@ -48,7 +46,6 @@ resource "google_project_iam_member" "iap_access" {
   member   = each.value
 }
 
-# OS Login admin (optionnel)
 resource "google_project_iam_member" "oslogin_admin" {
   for_each = toset(var.oslogin_admins)
   project  = var.project_id

@@ -5,17 +5,17 @@ on:
     branches:
       - release
     paths:
-      - 'environments/preprod/**'
-      - 'modules/**'
-      - '.github/workflows/cd-preprod.yml'
-      - '.github/workflows/terraform-apply.yml'
+      - "environments/preprod/**"
+      - "modules/**"
+      - ".github/workflows/cd-preprod.yml"
+      - ".github/workflows/terraform-apply.yml"
 
   workflow_dispatch:
     inputs:
       confirm:
         description: 'Type "deploy" to confirm deployment'
         required: true
-        default: 'no'
+        default: "no"
 
 jobs:
   check-confirmation:

@@ -16,7 +16,6 @@ resource "google_compute_subnetwork" "subnets" {
   description              = try(each.value.description, null)
 }
 
-# Firewall: SSH via IAP uniquement (bastion), pas d'IP publique
 resource "google_compute_firewall" "iap_ssh" {
   name      = "${var.name_prefix}-allow-iap-ssh"
   network   = google_compute_network.vpc.id
@@ -36,7 +35,6 @@ resource "google_compute_firewall" "iap_ssh" {
   }
 }
 
-# Private Service Access (PSA) — requis pour Cloud SQL Private IP
 resource "google_compute_global_address" "psa_range" {
   count         = var.enable_private_service_access ? 1 : 0
   name          = "${var.name_prefix}-psa"

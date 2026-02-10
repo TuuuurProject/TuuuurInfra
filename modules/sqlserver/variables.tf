@@ -31,7 +31,6 @@ variable "network_self_link" {
   description = "VPC self_link (nécessaire pour Cloud SQL private_network)."
 }
 
-# Cloud SQL (SQL Server)
 variable "database_version" {
   type    = string
   default = "SQLSERVER_2022_STANDARD"
@@ -55,7 +54,7 @@ variable "disk_type" {
 variable "high_availability" {
   type    = bool
   default = false
-} # REGIONAL si true
+}
 
 variable "db_name" {
   type    = string

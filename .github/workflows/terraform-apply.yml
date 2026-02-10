@@ -71,11 +71,11 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    
+
     defaults:
       run:
         working-directory: environments/${{ inputs.environment }}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

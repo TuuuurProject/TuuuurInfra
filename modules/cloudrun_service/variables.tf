@@ -96,7 +96,7 @@ variable "env_vars" {
 variable "secret_env_vars" {
   type = list(object({
     name    = string
-    secret  = string # secret_id (pas l'id complet)
+    secret  = string
     version = optional(string, "latest")
   }))
   default = []
@@ -109,5 +109,5 @@ variable "vpc_connector_id" {
 
 variable "vpc_egress" {
   type    = string
-  default = "PRIVATE_RANGES_ONLY" # ou ALL_TRAFFIC
+  default = "PRIVATE_RANGES_ONLY"
 }
