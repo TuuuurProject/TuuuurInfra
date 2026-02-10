@@ -36,9 +36,6 @@ jobs:
             if echo "$CHANGED_FILES" | grep -q "environments/preprod\|modules/"; then
               ENVS=$(echo $ENVS | jq -c '. + ["preprod"]')
             fi
-            if echo "$CHANGED_FILES" | grep -q "environments/dev\|modules/"; then
-              ENVS=$(echo $ENVS | jq -c '. + ["dev"]')
-            fi
           elif [ "$BASE_REF" = "master" ]; then
             if echo "$CHANGED_FILES" | grep -q "environments/prod\|modules/"; then
               ENVS=$(echo $ENVS | jq -c '. + ["prod"]')
