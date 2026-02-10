@@ -27,10 +27,7 @@ module "gcp_secrets" {
     "front-domain",
     "api-domain",
     "db-migration-image",
-    "ovh-domain",
-    "ovh-application-key",
-    "ovh-application-secret",
-    "ovh-consumer-key"
+    "ovh-domain"
   ]
 }
 

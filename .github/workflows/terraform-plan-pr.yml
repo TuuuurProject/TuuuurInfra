@@ -26,24 +26,27 @@ jobs:
         run: |
           # Get changed files
           CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          BASE_REF="${{ github.base_ref }}"
 
           ENVS="[]"
 
-          # Check each environment
-          if echo "$CHANGED_FILES" | grep -q "environments/preprod\|modules/"; then
-            ENVS=$(echo $ENVS | jq -c '. + ["preprod"]')
-          fi
-
-          if echo "$CHANGED_FILES" | grep -q "environments/prod\|modules/"; then
-            ENVS=$(echo $ENVS | jq -c '. + ["prod"]')
-          fi
-
-          if echo "$CHANGED_FILES" | grep -q "environments/dev\|modules/"; then
-            ENVS=$(echo $ENVS | jq -c '. + ["dev"]')
+          # For PR to release: test dev and preprod only
+          # For PR to master: test prod only
+          if [ "$BASE_REF" = "release" ]; then
+            if echo "$CHANGED_FILES" | grep -q "environments/preprod\|modules/"; then
+              ENVS=$(echo $ENVS | jq -c '. + ["preprod"]')
+            fi
+            if echo "$CHANGED_FILES" | grep -q "environments/dev\|modules/"; then
+              ENVS=$(echo $ENVS | jq -c '. + ["dev"]')
+            fi
+          elif [ "$BASE_REF" = "master" ]; then
+            if echo "$CHANGED_FILES" | grep -q "environments/prod\|modules/"; then
+              ENVS=$(echo $ENVS | jq -c '. + ["prod"]')
+            fi
           fi
 
           echo "environments=$ENVS" >> $GITHUB_OUTPUT
-          echo "Detected environments: $ENVS"
+          echo "Detected environments for $BASE_REF: $ENVS"
 
   terraform-plan:
     needs: detect-environments
