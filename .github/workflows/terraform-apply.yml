@@ -1,0 +1,113 @@
+name: Terraform Apply
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: "Environment to deploy (dev, preprod, prod)"
+      project_id:
+        required: true
+        type: string
+        description: "GCP Project ID"
+      env_name:
+        required: true
+        type: string
+        description: "Environment name"
+      terraform_version:
+        required: false
+        type: string
+        default: "1.6.0"
+        description: "Terraform version to use"
+    secrets:
+      GCP_SA_KEY:
+        required: true
+      # OVH DNS credentials (optional, comment out if not using OVH)
+      OVH_APPLICATION_KEY:
+        required: false
+      OVH_APPLICATION_SECRET:
+        required: false
+      OVH_CONSUMER_KEY:
+        required: false
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    defaults:
+      run:
+        working-directory: environments/${{ inputs.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        env:
+          # OVH DNS credentials (read from secrets)
+          OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+          OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
+        run: |
+          terraform plan -no-color -input=false \
+            -var="project_id=${{ inputs.project_id }}" \
+            -var="env=${{ inputs.env_name }}" \
+            -out=tfplan
+        continue-on-error: false
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ inputs.environment }}
+          path: environments/${{ inputs.environment }}/tfplan
+          retention-days: 5
+
+      - name: Terraform Apply
+        id: apply
+        env:
+          # OVH DNS credentials (read from secrets)
+          OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+          OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
+        run: |
+          terraform apply -auto-approve -input=false tfplan
+
+      - name: Terraform Output
+        id: output
+        run: terraform output -json > terraform-outputs.json
+
+      - name: Upload Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs-${{ inputs.environment }}
+          path: environments/${{ inputs.environment }}/terraform-outputs.json
+          retention-days: 30

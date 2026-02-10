@@ -1,0 +1,48 @@
+name: CD - Deploy Preprod
+
+on:
+  push:
+    branches:
+      - release
+    paths:
+      - "environments/preprod/**"
+      - "modules/**"
+      - ".github/workflows/cd-preprod.yml"
+      - ".github/workflows/terraform-apply.yml"
+
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm deployment'
+        required: true
+        default: "no"
+
+jobs:
+  check-confirmation:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
+            echo "Deployment not confirmed. Exiting."
+            exit 1
+          fi
+
+  terraform-apply:
+    needs: [check-confirmation]
+    if: |
+      always() && 
+      (github.event_name == 'push' || 
+       (github.event_name == 'workflow_dispatch' && needs.check-confirmation.result == 'success'))
+    uses: ./.github/workflows/terraform-apply.yml
+    with:
+      environment: "preprod"
+      project_id: "tuuuur"
+      env_name: "preprod"
+      terraform_version: "1.6.0"
+    secrets:
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+      OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+      OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
