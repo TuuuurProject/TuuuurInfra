@@ -48,27 +48,6 @@ variable "ovh_domain" {
   default     = null
 }
 
-variable "ovh_application_key" {
-  type        = string
-  description = "OVH API Application Key"
-  default     = ""
-  sensitive   = true
-}
-
-variable "ovh_application_secret" {
-  type        = string
-  description = "OVH API Application Secret"
-  default     = ""
-  sensitive   = true
-}
-
-variable "ovh_consumer_key" {
-  type        = string
-  description = "OVH API Consumer Key"
-  default     = ""
-  sensitive   = true
-}
-
 variable "connector_cidr" {
   type    = string
   default = "10.30.0.0/28"
