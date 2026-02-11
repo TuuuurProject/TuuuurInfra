@@ -179,7 +179,6 @@ resource "google_cloud_run_v2_service_iam_member" "api_invoker" {
 
 module "cloudrun_api" {
   source      = "../../modules/cloudrun_service"
-  depends_on  = [module.secrets]
   project_id  = var.project_id
   name_prefix = local.prefix
   name        = "${local.prefix}-api"
@@ -225,12 +224,12 @@ module "cloudrun_api" {
   secret_env_vars = [
     {
       name    = "DB_PASSWORD"
-      secret  = module.secrets.secret_ids["db-password"]
+      secret  = "${local.prefix}-db-password"
       version = "latest"
     },
     {
       name    = "REDIS_AUTH"
-      secret  = module.secrets.secret_ids["redis-auth"]
+      secret  = "${local.prefix}-redis-auth"
       version = "latest"
     }
   ]
