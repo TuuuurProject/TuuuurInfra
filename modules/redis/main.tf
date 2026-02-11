@@ -14,12 +14,3 @@ resource "google_redis_instance" "redis" {
   labels = var.labels
 }
 
-resource "google_secret_manager_secret_version" "redis_auth" {
-  count       = var.auth_enabled ? 1 : 0
-  secret      = var.redis_auth_secret_id
-  secret_data = google_redis_instance.redis.auth_string
-
-  lifecycle {
-    ignore_changes = [secret_data]
-  }
-}
