@@ -77,27 +77,18 @@ module "vpc_connector" {
   max_instances = 3
 }
 
-module "secrets" {
-  source      = "../../modules/secrets"
-  project_id  = var.project_id
-  name_prefix = local.prefix
-  labels      = local.labels
+resource "google_secret_manager_secret_iam_member" "db_password_accessor" {
+  project   = var.project_id
+  secret_id = "${local.prefix}-db-password"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.run_api.email}"
+}
 
-  secrets = {
-    db-password = { labels = local.labels }
-    redis-auth  = { labels = local.labels }
-  }
-
-  create_versions = true
-  secret_values = {
-    db-password = module.gcp_secrets.secrets["db-password"]
-    redis-auth  = var.redis_auth ? module.redis.auth_string : "unused"
-  }
-
-  accessors = {
-    db-password = ["serviceAccount:${google_service_account.run_api.email}"]
-    redis-auth  = ["serviceAccount:${google_service_account.run_api.email}"]
-  }
+resource "google_secret_manager_secret_iam_member" "redis_auth_accessor" {
+  project   = var.project_id
+  secret_id = "${local.prefix}-redis-auth"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.run_api.email}"
 }
 
 module "redis" {
