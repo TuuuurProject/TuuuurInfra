@@ -78,17 +78,19 @@ module "vpc_connector" {
 }
 
 resource "google_secret_manager_secret_iam_member" "db_password_accessor" {
-  project   = var.project_id
-  secret_id = "${local.prefix}-db-password"
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.run_api.email}"
+  depends_on = [module.project_services]
+  project    = var.project_id
+  secret_id  = "${local.prefix}-db-password"
+  role       = "roles/secretmanager.secretAccessor"
+  member     = "serviceAccount:${google_service_account.run_api.email}"
 }
 
 resource "google_secret_manager_secret_iam_member" "redis_auth_accessor" {
-  project   = var.project_id
-  secret_id = "${local.prefix}-redis-auth"
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.run_api.email}"
+  depends_on = [module.project_services, module.redis]
+  project    = var.project_id
+  secret_id  = "${local.prefix}-redis-auth"
+  role       = "roles/secretmanager.secretAccessor"
+  member     = "serviceAccount:${google_service_account.run_api.email}"
 }
 
 module "redis" {
@@ -104,7 +106,10 @@ module "redis" {
   transit_encryption_mode = "DISABLED"
   labels                  = local.labels
 
+  redis_auth_secret_id          = "${local.prefix}-redis-auth"
   service_networking_connection = module.network.service_networking_connection
+
+  depends_on = [module.project_services]
 }
 
 module "sql" {
@@ -162,23 +167,26 @@ module "cloudrun_front" {
 }
 
 resource "google_cloud_run_v2_service_iam_member" "front_invoker" {
-  project  = var.project_id
-  location = module.gcp_secrets.config["region"]
-  name     = module.cloudrun_front.service_id
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+  depends_on = [module.cloudrun_front]
+  project    = var.project_id
+  location   = module.gcp_secrets.config["region"]
+  name       = module.cloudrun_front.service_id
+  role       = "roles/run.invoker"
+  member     = "allUsers"
 }
 
 resource "google_cloud_run_v2_service_iam_member" "api_invoker" {
-  project  = var.project_id
-  location = module.gcp_secrets.config["region"]
-  name     = module.cloudrun_api.service_id
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+  depends_on = [module.cloudrun_api]
+  project    = var.project_id
+  location   = module.gcp_secrets.config["region"]
+  name       = module.cloudrun_api.service_id
+  role       = "roles/run.invoker"
+  member     = "allUsers"
 }
 
 module "cloudrun_api" {
   source      = "../../modules/cloudrun_service"
+  depends_on  = [google_secret_manager_secret_iam_member.db_password_accessor, google_secret_manager_secret_iam_member.redis_auth_accessor, module.sql, module.redis]
   project_id  = var.project_id
   name_prefix = local.prefix
   name        = "${local.prefix}-api"
@@ -207,7 +215,8 @@ module "cloudrun_api" {
   env_vars = {
     "ConnectionStrings__Tuuuur" = "Server=${module.sql.private_ip_address},1433;Database=${var.db_name};User Id=${var.db_user};Password=${module.gcp_secrets.secrets["db-password"]};TrustServerCertificate=True;"
 
-    "ConnectionStrings__Redis" = var.redis_auth ? "${module.redis.host}:${module.redis.port},password=${module.gcp_secrets.secrets["db-password"]}" : "${module.redis.host}:${module.redis.port}"
+    # Redis connection - auth is passed via REDIS_AUTH secret_env_var, not here
+    "ConnectionStrings__Redis" = "${module.redis.host}:${module.redis.port}"
 
     "JwtSettings__Key" = module.gcp_secrets.secrets["jwt-key"]
 

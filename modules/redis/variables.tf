@@ -49,3 +49,9 @@ variable "service_networking_connection" {
   type        = any
   default     = null
 }
+
+variable "redis_auth_secret_id" {
+  description = "Secret Manager secret ID to store Redis auth string (required if auth_enabled=true)"
+  type        = string
+  default     = ""
+}
