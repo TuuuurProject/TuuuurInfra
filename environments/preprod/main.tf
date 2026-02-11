@@ -6,6 +6,7 @@ locals {
   })
 }
 
+# Read secrets from GCP Secret Manager (created by push-secrets-to-gcp.sh script)
 module "gcp_secrets" {
   source      = "../../modules/secrets_datasource"
   project_id  = var.project_id
@@ -27,7 +28,8 @@ module "gcp_secrets" {
     "front-domain",
     "api-domain",
     "db-migration-image",
-    "ovh-domain"
+    "ovh-domain",
+    "redis-auth"
   ]
 }
 
@@ -77,22 +79,6 @@ module "vpc_connector" {
   max_instances = 3
 }
 
-resource "google_secret_manager_secret_iam_member" "db_password_accessor" {
-  depends_on = [module.project_services]
-  project    = var.project_id
-  secret_id  = "${local.prefix}-db-password"
-  role       = "roles/secretmanager.secretAccessor"
-  member     = "serviceAccount:${google_service_account.run_api.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "redis_auth_accessor" {
-  depends_on = [module.project_services, module.redis]
-  project    = var.project_id
-  secret_id  = "${local.prefix}-redis-auth"
-  role       = "roles/secretmanager.secretAccessor"
-  member     = "serviceAccount:${google_service_account.run_api.email}"
-}
-
 module "redis" {
   source      = "../../modules/redis"
   project_id  = var.project_id
@@ -106,7 +92,6 @@ module "redis" {
   transit_encryption_mode = "DISABLED"
   labels                  = local.labels
 
-  redis_auth_secret_id          = "${local.prefix}-redis-auth"
   service_networking_connection = module.network.service_networking_connection
 
   depends_on = [module.project_services]
@@ -186,7 +171,7 @@ resource "google_cloud_run_v2_service_iam_member" "api_invoker" {
 
 module "cloudrun_api" {
   source      = "../../modules/cloudrun_service"
-  depends_on  = [google_secret_manager_secret_iam_member.db_password_accessor, google_secret_manager_secret_iam_member.redis_auth_accessor, module.sql, module.redis]
+  depends_on  = [module.sql, module.redis]
   project_id  = var.project_id
   name_prefix = local.prefix
   name        = "${local.prefix}-api"
