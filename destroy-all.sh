@@ -316,14 +316,15 @@ if [ -n "$NETWORK_EXISTS" ]; then
 fi
 
 # 3.14 - Secrets
-log_info "Nettoyage des secrets..."
-SECRETS=$(gcloud secrets list --filter="name~${PREFIX}" --format="value(name)" 2>/dev/null || echo "")
-for secret in $SECRETS; do
-    if [ -n "$secret" ]; then
-        log_info "  └─ Secret: $secret"
-        gcloud secrets delete $secret --quiet 2>/dev/null || true
-    fi
-done
+
+# log_info "Nettoyage des secrets..."
+# SECRETS=$(gcloud secrets list --filter="name~${PREFIX}" --format="value(name)" 2>/dev/null || echo "")
+# for secret in $SECRETS; do
+#     if [ -n "$secret" ]; then
+#         log_info "  └─ Secret: $secret"
+#         gcloud secrets delete $secret --quiet 2>/dev/null || true
+#     fi
+# done
 
 # 3.15 - Service Accounts
 log_info "Nettoyage des service accounts..."
@@ -390,8 +391,8 @@ check_resource "Firewall Rules" \
 check_resource "VPC Networks" \
     "gcloud compute networks list --filter='name~${PREFIX}' --format='value(name)'"
 
-check_resource "Secrets" \
-    "gcloud secrets list --filter='name~${PREFIX}' --format='value(name)'"
+# check_resource "Secrets" \
+#     "gcloud secrets list --filter='name~${PREFIX}' --format='value(name)'"
 
 check_resource "Service Accounts" \
     "gcloud iam service-accounts list --filter='email~${PREFIX}' --format='value(email)'"
