@@ -314,32 +314,55 @@ resource "null_resource" "run_db_setup_and_migration" {
       echo "=========================================="
       echo "Step 1: Running database migration with root user..."
       echo "=========================================="
-      gcloud run jobs execute ${google_cloud_run_v2_job.db_migration[0].name} \
+      
+      # Execute migration job and capture execution name
+      EXEC_OUTPUT=$(gcloud run jobs execute ${google_cloud_run_v2_job.db_migration[0].name} \
+        --region=${var.region} \
+        --project=${var.project_id} \
+        --wait 2>&1) || MIGRATION_FAILED=true
+      
+      EXEC_NAME=$(echo "$EXEC_OUTPUT" | grep -oE '${google_cloud_run_v2_job.db_migration[0].name}-[a-z0-9]+' | head -1)
+      
+      echo "Execution name: $EXEC_NAME"
+      
+      # Check if migration actually succeeded by looking at logs
+      if [ ! -z "$EXEC_NAME" ]; then
+        echo "Checking migration logs..."
+        sleep 5
+        LOGS=$(gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=${google_cloud_run_v2_job.db_migration[0].name} AND labels.\"run.googleapis.com/execution_name\"=$EXEC_NAME" \
+          --limit 100 \
+          --format="value(textPayload)" \
+          --project=${var.project_id} 2>&1)
+        
+        if echo "$LOGS" | grep -q "Successfully published database"; then
+          echo "✓ Database migration completed successfully (verified in logs)!"
+          MIGRATION_FAILED=false
+        else
+          echo "Migration logs:"
+          echo "$LOGS"
+        fi
+      fi
+      
+      if [ "$MIGRATION_FAILED" = "true" ]; then
+        echo "✗ Database migration failed. Check logs with:"
+        echo "  gcloud run jobs executions list --job=${google_cloud_run_v2_job.db_migration[0].name} --region=${var.region}"
+        exit 1
+      fi
+      
+      echo ""
+      echo "=========================================="
+      echo "Step 2: Setting up appuser permissions after migration..."
+      echo "=========================================="
+      gcloud run jobs execute ${google_cloud_run_v2_job.db_setup[0].name} \
         --region=${var.region} \
         --project=${var.project_id} \
         --wait
       
       if [ $? -eq 0 ]; then
-        echo "✓ Database migration completed successfully!"
-        echo ""
-        echo "=========================================="
-        echo "Step 2: Setting up appuser permissions after migration..."
-        echo "=========================================="
-        gcloud run jobs execute ${google_cloud_run_v2_job.db_setup[0].name} \
-          --region=${var.region} \
-          --project=${var.project_id} \
-          --wait
-        
-        if [ $? -eq 0 ]; then
-          echo "✓ Database user setup completed successfully!"
-        else
-          echo "✗ Database user setup failed. Check logs with:"
-          echo "  gcloud run jobs executions list --job=${google_cloud_run_v2_job.db_setup[0].name} --region=${var.region}"
-          exit 1
-        fi
+        echo "✓ Database user setup completed successfully!"
       else
-        echo "✗ Database migration failed. Check logs with:"
-        echo "  gcloud run jobs executions list --job=${google_cloud_run_v2_job.db_migration[0].name} --region=${var.region}"
+        echo "✗ Database user setup failed. Check logs with:"
+        echo "  gcloud run jobs executions list --job=${google_cloud_run_v2_job.db_setup[0].name} --region=${var.region}"
         exit 1
       fi
       
