@@ -282,7 +282,7 @@ module "lb_api" {
   region      = module.gcp_secrets.config["region"]
 
   cloud_run_service = module.cloudrun_api.service_id
-  domains           = [module.gcp_secrets.config["api-domain"], "tuuuur.api.florent-dubut.fr"]
+  domains           = [module.gcp_secrets.config["api-domain"]]
 
   create_dns_records = var.create_dns_records
   dns_zone_name      = var.dns_zone_name
@@ -305,15 +305,5 @@ module "ovh_dns_api" {
 
   domain    = module.gcp_secrets.config["ovh-domain"]
   subdomain = trimsuffix(module.gcp_secrets.config["api-domain"], ".${module.gcp_secrets.config["ovh-domain"]}")
-  target    = module.lb_api.ip_address
-}
-
-module "ovh_dns_api_prod_like" {
-  count      = try(module.gcp_secrets.config["ovh-domain"], null) != null && module.gcp_secrets.config["ovh-domain"] != "" ? 1 : 0
-  source     = "../../modules/ovh_dns"
-  depends_on = [module.lb_api]
-
-  domain    = module.gcp_secrets.config["ovh-domain"]
-  subdomain = "tuuuur.api"
   target    = module.lb_api.ip_address
 }
