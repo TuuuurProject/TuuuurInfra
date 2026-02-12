@@ -91,6 +91,15 @@ terraform state rm 'module.network.google_service_networking_connection.psa_conn
     log_info "✓ Ressource retirée du state" || \
     log_info "ℹ️  Ressource déjà absente du state"
 
+log_info "Retrait des Network Endpoint Groups du state Terraform..."
+terraform state rm 'module.lb_api.google_compute_region_network_endpoint_group.neg' 2>/dev/null && \
+    log_info "✓ API NEG retirée du state" || \
+    log_info "ℹ️  API NEG déjà absente du state"
+
+terraform state rm 'module.lb_front.google_compute_region_network_endpoint_group.neg' 2>/dev/null && \
+    log_info "✓ Front NEG retirée du state" || \
+    log_info "ℹ️  Front NEG déjà absente du state"
+
 log_info "Suppression de la connexion Service Networking..."
 gcloud services vpc-peerings delete \
     --service=servicenetworking.googleapis.com \

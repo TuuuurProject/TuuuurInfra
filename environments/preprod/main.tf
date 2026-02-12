@@ -48,12 +48,6 @@ resource "google_service_account" "run_api" {
   display_name = "${local.prefix} Cloud Run API"
 }
 
-resource "google_project_iam_member" "api_secret_accessor" {
-  project = var.project_id
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${google_service_account.run_api.email}"
-}
-
 module "network" {
   source      = "../../modules/network"
   project_id  = var.project_id
