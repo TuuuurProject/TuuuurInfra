@@ -7,9 +7,25 @@ locals {
   
   # Construire les URLs des images Docker à partir des SHA Git stockés dans Secret Manager
   docker_registry = "europe-west9-docker.pkg.dev/tuuuur/tuuuur"
-  front_image     = "${local.docker_registry}/web:${module.gcp_secrets.config["web-git-sha"]}"
-  api_image       = "${local.docker_registry}/api:${module.gcp_secrets.config["api-git-sha"]}"
-  db_migration_image = "${local.docker_registry}/database:${module.gcp_secrets.config["database-git-sha"]}"
+  front_image     = "${local.docker_registry}/web:${data.google_secret_manager_secret_version.web_git_sha.secret_data}"
+  api_image       = "${local.docker_registry}/api:${data.google_secret_manager_secret_version.api_git_sha.secret_data}"
+  db_migration_image = "${local.docker_registry}/database:${data.google_secret_manager_secret_version.database_git_sha.secret_data}"
+}
+
+# Lire les SHA Git depuis Secret Manager (noms spécifiques)
+data "google_secret_manager_secret_version" "web_git_sha" {
+  secret  = "tuuuur-web-${var.env}-git-sha"
+  project = var.project_id
+}
+
+data "google_secret_manager_secret_version" "api_git_sha" {
+  secret  = "tuuuur-api-${var.env}-git-sha"
+  project = var.project_id
+}
+
+data "google_secret_manager_secret_version" "database_git_sha" {
+  secret  = "tuuuur-database-${var.env}-git-sha"
+  project = var.project_id
 }
 
 # Read secrets from GCP Secret Manager (created by push-secrets-to-gcp.sh script)
@@ -29,11 +45,8 @@ module "gcp_secrets" {
     "smtp-host",
     "smtp-user",
     "smtp-password",
-    "web-git-sha",
-    "api-git-sha",
     "front-domain",
     "api-domain",
-    "database-git-sha",
     "ovh-domain",
     "redis-auth"
   ]
