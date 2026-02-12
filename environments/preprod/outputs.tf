@@ -12,14 +12,17 @@ output "sql_instance_name" { value = module.sql.instance_name }
 output "db_migration_job_name" {
   description = "Nom du Cloud Run Job de migration de base de données"
   value       = module.sql.migration_job_name
+  sensitive   = true
 }
 
 output "db_migration_job_url" {
   description = "URL console du Cloud Run Job de migration"
   value       = module.sql.migration_job_url
+  sensitive   = true
 }
 
 output "run_migration_command" {
   description = "Commande pour ré-exécuter la migration manuellement"
   value       = module.sql.run_migration_command
+  sensitive   = true
 }
