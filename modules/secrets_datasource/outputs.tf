@@ -10,11 +10,8 @@ output "config" {
     name => nonsensitive(value)
     if contains([
       "region",
-      "web-git-sha",
-      "api-git-sha",
       "front-domain",
       "api-domain",
-      "database-git-sha",
       "ovh-domain"
     ], name)
   }
