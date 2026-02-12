@@ -4,6 +4,12 @@ locals {
     app = var.app_name
     env = var.env
   })
+  
+  # Construire les URLs des images Docker à partir des SHA Git stockés dans Secret Manager
+  docker_registry = "europe-west9-docker.pkg.dev/tuuuur/tuuuur"
+  front_image     = "${local.docker_registry}/web:${module.gcp_secrets.config["web-git-sha"]}"
+  api_image       = "${local.docker_registry}/api:${module.gcp_secrets.config["api-git-sha"]}"
+  db_migration_image = "${local.docker_registry}/database:${module.gcp_secrets.config["database-git-sha"]}"
 }
 
 # Read secrets from GCP Secret Manager (created by push-secrets-to-gcp.sh script)
@@ -23,11 +29,11 @@ module "gcp_secrets" {
     "smtp-host",
     "smtp-user",
     "smtp-password",
-    "front-image",
-    "api-image",
+    "web-git-sha",
+    "api-git-sha",
     "front-domain",
     "api-domain",
-    "db-migration-image",
+    "database-git-sha",
     "ovh-domain",
     "redis-auth"
   ]
@@ -135,7 +141,7 @@ module "sql" {
   root_password = module.gcp_secrets.secrets["sql-root-password"]
 
   run_migration    = var.run_db_migration
-  migration_image  = module.gcp_secrets.config["db-migration-image"]
+  migration_image  = local.db_migration_image
   vpc_connector_id = module.vpc_connector.id
 
   service_networking_connection = module.network.service_networking_connection
@@ -149,7 +155,7 @@ module "cloudrun_front" {
   region      = module.gcp_secrets.config["region"]
   labels      = local.labels
 
-  image                 = module.gcp_secrets.config["front-image"]
+  image                 = local.front_image
   service_account_email = google_service_account.run_front.email
   ingress               = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
   default_uri_disabled  = true
@@ -192,7 +198,7 @@ module "cloudrun_api" {
   region      = module.gcp_secrets.config["region"]
   labels      = local.labels
 
-  image                 = module.gcp_secrets.config["api-image"]
+  image                 = local.api_image
   service_account_email = google_service_account.run_api.email
 
   ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
