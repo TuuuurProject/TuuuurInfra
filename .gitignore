@@ -41,6 +41,9 @@ backend.tf
 # Ignore lock files
 .terraform.lock.hcl
 
+# Ignore environment variables file with secrets
+.env
+
 # Ignore macOS files
 .DS_Store
 

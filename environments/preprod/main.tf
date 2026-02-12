@@ -48,6 +48,18 @@ resource "google_service_account" "run_api" {
   display_name = "${local.prefix} Cloud Run API"
 }
 
+resource "google_secret_manager_secret_iam_member" "api_db_password_accessor" {
+  secret_id = "${local.prefix}-db-password"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.run_api.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "api_redis_auth_accessor" {
+  secret_id = "${local.prefix}-redis-auth"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.run_api.email}"
+}
+
 module "network" {
   source      = "../../modules/network"
   project_id  = var.project_id
