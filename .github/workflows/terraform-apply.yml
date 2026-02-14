@@ -63,11 +63,13 @@ jobs:
 
       - name: Terraform Init
         id: init
+        env:
+          TF_ENV_NAME: ${{ inputs.env_name }}
         run: |
           terraform init \
             -reconfigure \
             -backend-config="bucket=tuuuur-terraform-state" \
-            -backend-config="prefix=terraform/state/${{ inputs.env_name }}"
+            -backend-config="prefix=terraform/state/${TF_ENV_NAME}"
 
       - name: Terraform Validate
         id: validate
@@ -79,10 +81,12 @@ jobs:
           OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
           OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
           OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
+          TF_PROJECT_ID: ${{ inputs.project_id }}
+          TF_ENV_NAME: ${{ inputs.env_name }}
         run: |
           terraform plan -no-color -input=false \
-            -var="project_id=${{ inputs.project_id }}" \
-            -var="env=${{ inputs.env_name }}" \
+            -var="project_id=${TF_PROJECT_ID}" \
+            -var="env=${TF_ENV_NAME}" \
             -out=tfplan
         continue-on-error: false
 
