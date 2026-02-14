@@ -63,7 +63,11 @@ jobs:
 
       - name: Terraform Init
         id: init
-        run: terraform init
+        run: |
+          terraform init \
+            -reconfigure \
+            -backend-config="bucket=tuuuur-terraform-state" \
+            -backend-config="prefix=terraform/state/${{ inputs.env_name }}"
 
       - name: Terraform Validate
         id: validate
