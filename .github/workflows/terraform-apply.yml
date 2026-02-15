@@ -117,11 +117,13 @@ jobs:
           terraform apply -auto-approve -input=false tfplan
 
       - name: Verify tfstate in GCS
+        env:
+          TF_ENV_NAME: ${{ inputs.env_name }}
         run: |
           echo "=== Verifying tfstate location ==="
           echo ""
           echo "Looking in GCS bucket..."
-          gsutil ls -r gs://tuuuur-terraform-state/terraform/state/${{ inputs.env_name }}/ 2>/dev/null && echo "✓ Found files in GCS" || echo "❌ No files in GCS"
+          gsutil ls -r gs://tuuuur-terraform-state/terraform/state/${TF_ENV_NAME}/ 2>/dev/null && echo "✓ Found files in GCS" || echo "❌ No files in GCS"
           echo ""
           echo "Full bucket contents:"
           gsutil ls -r gs://tuuuur-terraform-state/ 2>/dev/null || echo "Bucket empty or not accessible"
