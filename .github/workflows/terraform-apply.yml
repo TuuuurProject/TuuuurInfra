@@ -65,6 +65,22 @@ jobs:
         id: init
         run: terraform init -reconfigure
 
+      - name: Check Backend Location
+        run: |
+          echo "=== Checking Terraform Backend ==="
+          echo "Checking for local state file..."
+          if [ -f .terraform/terraform.tfstate ]; then
+            echo "❌ PROBLEM: Found local backend state file .terraform/terraform.tfstate"
+            echo "Backend is using LOCAL state, NOT GCS!"
+            cat .terraform/terraform.tfstate | head -20
+            exit 1
+          else
+            echo "✓ No local backend state file found"
+          fi
+          echo ""
+          echo "Checking backend config..."
+          terraform backend config -json 2>/dev/null || echo "Could not read backend config"
+
       - name: Terraform Validate
         id: validate
         run: terraform validate -no-color
@@ -99,6 +115,18 @@ jobs:
           OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
         run: |
           terraform apply -auto-approve -input=false tfplan
+
+      - name: Verify tfstate in GCS
+        env:
+          TF_ENV_NAME: ${{ inputs.env_name }}
+        run: |
+          echo "=== Verifying tfstate location ==="
+          echo ""
+          echo "Looking in GCS bucket..."
+          gsutil ls -r gs://tuuuur-terraform-state/terraform/state/${TF_ENV_NAME}/ 2>/dev/null && echo "✓ Found files in GCS" || echo "❌ No files in GCS"
+          echo ""
+          echo "Full bucket contents:"
+          gsutil ls -r gs://tuuuur-terraform-state/ 2>/dev/null || echo "Bucket empty or not accessible"
 
       - name: Terraform Output
         id: output
