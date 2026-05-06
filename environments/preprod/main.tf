@@ -8,7 +8,7 @@ locals {
   # Construire les URLs des images Docker à partir des SHA Git stockés dans Secret Manager
   docker_registry    = "europe-west9-docker.pkg.dev/tuuuur/tuuuur"
   front_image        = "${local.docker_registry}/web:${data.google_secret_manager_secret_version.web_git_sha.secret_data}"
-  api_image          = "${local.docker_registry}/api:{data.google_secret_manager_secret_version.api_git_sha.secret_data}"
+  api_image          = "${local.docker_registry}/api:${data.google_secret_manager_secret_version.api_git_sha.secret_data}"
   db_migration_image = "${local.docker_registry}/database:${data.google_secret_manager_secret_version.database_git_sha.secret_data}"
 }
 
