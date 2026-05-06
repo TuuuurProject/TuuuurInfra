@@ -8,9 +8,39 @@ resource "google_redis_instance" "redis" {
 
   depends_on = [var.service_networking_connection]
 
+  # Network and connection settings
+  connect_mode            = var.connect_mode
+  reserved_ip_range       = var.reserved_ip_range
+  location_id             = var.location_id
+  alternative_location_id = var.alternative_location_id
+
+  # Display and metadata
+  display_name = var.display_name != "" ? var.display_name : "${var.name_prefix} Redis Instance"
+  labels       = var.labels
+
+  # Auth and encryption
   auth_enabled            = var.auth_enabled
   transit_encryption_mode = var.transit_encryption_mode
 
-  labels = var.labels
+  # HA and replication (for STANDARD_HA)
+  replica_count      = var.tier == "STANDARD_HA" ? (var.replica_count != null ? var.replica_count : 1) : null
+  read_replicas_mode = var.tier == "STANDARD_HA" ? var.read_replicas_mode : null
+
+  # Persistence
+  dynamic "persistence_config" {
+    for_each = var.persistence_enabled ? [1] : []
+    content {
+      persistence_mode    = "RDB"
+      rdb_snapshot_period = var.persistence_rdb_snapshot_period
+    }
+  }
+
+  # Extended timeouts for destruction
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "45m"
+  }
 }
+
 

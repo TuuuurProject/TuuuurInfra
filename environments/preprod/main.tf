@@ -7,9 +7,9 @@ locals {
 
   # Construire les URLs des images Docker à partir des SHA Git stockés dans Secret Manager
   docker_registry    = "europe-west9-docker.pkg.dev/tuuuur/tuuuur"
-  front_image        = "${local.docker_registry}/web:${var.env}-${data.google_secret_manager_secret_version.web_git_sha.secret_data}"
-  api_image          = "${local.docker_registry}/api:${var.env}-${data.google_secret_manager_secret_version.api_git_sha.secret_data}"
-  db_migration_image = "${local.docker_registry}/database:${var.env}-${data.google_secret_manager_secret_version.database_git_sha.secret_data}"
+  front_image        = "${local.docker_registry}/web:${data.google_secret_manager_secret_version.web_git_sha.secret_data}"
+  api_image          = "${local.docker_registry}/api:${data.google_secret_manager_secret_version.api_git_sha.secret_data}"
+  db_migration_image = "${local.docker_registry}/database:${data.google_secret_manager_secret_version.database_git_sha.secret_data}"
 }
 
 # Lire les SHA Git depuis Secret Manager (noms spécifiques)
@@ -67,20 +67,6 @@ resource "google_service_account" "run_api" {
   display_name = "${local.prefix} Cloud Run API"
 }
 
-resource "google_secret_manager_secret_iam_member" "api_db_password_access" {
-  project   = var.project_id
-  secret_id = "${local.prefix}-db-password"
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.run_api.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "api_redis_auth_access" {
-  project   = var.project_id
-  secret_id = "${local.prefix}-redis-auth"
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.run_api.email}"
-}
-
 module "network" {
   source      = "../../modules/network"
   project_id  = var.project_id
@@ -97,6 +83,9 @@ module "network" {
 
   enable_private_service_access        = true
   private_service_access_prefix_length = 16
+  downstream_resource_ids              = []
+
+  depends_on = [module.project_services]
 }
 
 module "vpc_connector" {
@@ -121,13 +110,48 @@ module "redis" {
 
   tier                    = var.redis_tier
   memory_size_gb          = var.redis_memory_gb
-  auth_enabled            = var.redis_auth
-  transit_encryption_mode = "DISABLED"
+  auth_enabled            = false
+  transit_encryption_mode = "SERVER_AUTHENTICATION"
   labels                  = local.labels
+
+  connect_mode      = "PRIVATE_SERVICE_ACCESS"
+  reserved_ip_range = module.network.psa_range_name
+  display_name      = "${local.prefix} Redis Cache"
+
+  persistence_enabled             = true
+  persistence_rdb_snapshot_period = "TWELVE_HOURS"
 
   service_networking_connection = module.network.service_networking_connection
 
-  depends_on = [module.project_services]
+  depends_on = [module.project_services, module.network]
+}
+
+resource "google_secret_manager_secret" "redis_ca_cert" {
+  project   = var.project_id
+  secret_id = "${local.prefix}-redis-ca-cert"
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "redis_ca_cert" {
+  secret      = google_secret_manager_secret.redis_ca_cert.name
+  secret_data = module.redis.server_ca_cert_bundle
+
+  depends_on = [module.redis]
+}
+
+module "secrets_access" {
+  source      = "../../modules/secrets_access"
+  project_id  = var.project_id
+  name_prefix = local.prefix
+
+  accessors = {
+    db-password   = ["serviceAccount:${google_service_account.run_api.email}"]
+    redis-auth    = ["serviceAccount:${google_service_account.run_api.email}"]
+    redis-ca-cert = ["serviceAccount:${google_service_account.run_api.email}"]
+  }
 }
 
 module "sql" {
@@ -233,8 +257,9 @@ module "cloudrun_api" {
   env_vars = {
     "ConnectionStrings__Tuuuur" = "Server=${module.sql.private_ip_address},1433;Database=${var.db_name};User Id=${var.db_user};Password=${module.gcp_secrets.secrets["db-password"]};TrustServerCertificate=True;"
 
-    # Redis connection - auth is passed via REDIS_AUTH secret_env_var, not here
-    "ConnectionStrings__Redis" = "${module.redis.host}:${module.redis.port}"
+    # Redis connection - TLS is required for transit encryption in prod/preprod
+    "ConnectionStrings__Redis" = "${module.redis.host}:${module.redis.port},ssl=true,abortConnect=false"
+    "SSL_CERT_FILE"            = "/secrets/redis-ca/ca.pem"
 
     "JwtSettings__Key" = module.gcp_secrets.secrets["jwt-key"]
 
@@ -258,6 +283,16 @@ module "cloudrun_api" {
       name    = "REDIS_AUTH"
       secret  = "${local.prefix}-redis-auth"
       version = "latest"
+    }
+  ]
+
+  secret_volumes = [
+    {
+      name       = "redis-ca"
+      secret     = "projects/${var.project_id}/secrets/${google_secret_manager_secret.redis_ca_cert.secret_id}"
+      mount_path = "/secrets/redis-ca"
+      file_path  = "ca.pem"
+      version    = "latest"
     }
   ]
 }

@@ -31,6 +31,22 @@ resource "google_cloud_run_v2_service" "service" {
       }
     }
 
+    dynamic "volumes" {
+      for_each = { for volume in var.secret_volumes : volume.name => volume }
+      content {
+        name = volumes.value.name
+        secret {
+          secret       = volumes.value.secret
+          default_mode = 292
+
+          items {
+            version = volumes.value.version
+            path    = volumes.value.file_path
+          }
+        }
+      }
+    }
+
     containers {
       image = var.image
 
@@ -65,6 +81,14 @@ resource "google_cloud_run_v2_service" "service" {
               version = env.value.version
             }
           }
+        }
+      }
+
+      dynamic "volume_mounts" {
+        for_each = { for volume in var.secret_volumes : volume.name => volume }
+        content {
+          name       = volume_mounts.value.name
+          mount_path = volume_mounts.value.mount_path
         }
       }
     }

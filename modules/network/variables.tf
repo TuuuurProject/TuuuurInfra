@@ -31,3 +31,9 @@ variable "private_service_access_prefix_length" {
   default     = 16
   description = "Taille du range réservé PSA (recommandé /16)."
 }
+
+variable "downstream_resource_ids" {
+  type        = list(string)
+  default     = []
+  description = "IDs of downstream resources (sql, redis, etc.) - used only to enforce destroy ordering"
+}

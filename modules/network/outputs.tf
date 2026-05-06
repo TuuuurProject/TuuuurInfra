@@ -17,3 +17,13 @@ output "service_networking_connection" {
   description = "Service Networking Connection for dependency management"
   value       = try(google_service_networking_connection.psa_connection[0], null)
 }
+
+output "psa_range_name" {
+  description = "Name of the PSA IP address range for use with Redis/SQL"
+  value       = try(google_compute_global_address.psa_range[0].name, null)
+}
+
+output "psa_range_cidr" {
+  description = "CIDR of the PSA IP address range for Redis reserved_ip_range parameter"
+  value       = try("${google_compute_global_address.psa_range[0].address}/${google_compute_global_address.psa_range[0].prefix_length}", null)
+}
