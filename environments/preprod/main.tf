@@ -67,27 +67,6 @@ resource "google_service_account" "run_api" {
   display_name = "${local.prefix} Cloud Run API"
 }
 
-resource "google_secret_manager_secret_iam_member" "api_db_password_access" {
-  project   = var.project_id
-  secret_id = "${local.prefix}-db-password"
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.run_api.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "api_redis_auth_access" {
-  project   = var.project_id
-  secret_id = "${local.prefix}-redis-auth"
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.run_api.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "api_redis_ca_cert_access" {
-  project   = var.project_id
-  secret_id = "${local.prefix}-redis-ca-cert"
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.run_api.email}"
-}
-
 module "network" {
   source      = "../../modules/network"
   project_id  = var.project_id
@@ -104,6 +83,9 @@ module "network" {
 
   enable_private_service_access        = true
   private_service_access_prefix_length = 16
+  downstream_resource_ids              = []
+
+  depends_on = [module.project_services]
 }
 
 module "vpc_connector" {
@@ -129,16 +111,19 @@ module "redis" {
   tier                    = var.redis_tier
   memory_size_gb          = var.redis_memory_gb
   auth_enabled            = false
-  transit_encryption_mode = "DISABLED"
+  transit_encryption_mode = "SERVER_AUTHENTICATION"
   labels                  = local.labels
 
   connect_mode      = "PRIVATE_SERVICE_ACCESS"
   reserved_ip_range = module.network.psa_range_name
   display_name      = "${local.prefix} Redis Cache"
 
+  persistence_enabled             = true
+  persistence_rdb_snapshot_period = "TWELVE_HOURS"
+
   service_networking_connection = module.network.service_networking_connection
 
-  depends_on = [module.project_services]
+  depends_on = [module.project_services, module.network]
 }
 
 resource "google_secret_manager_secret" "redis_ca_cert" {
@@ -155,6 +140,18 @@ resource "google_secret_manager_secret_version" "redis_ca_cert" {
   secret_data = module.redis.server_ca_cert_bundle
 
   depends_on = [module.redis]
+}
+
+module "secrets_access" {
+  source      = "../../modules/secrets_access"
+  project_id  = var.project_id
+  name_prefix = local.prefix
+
+  accessors = {
+    db-password   = ["serviceAccount:${google_service_account.run_api.email}"]
+    redis-auth    = ["serviceAccount:${google_service_account.run_api.email}"]
+    redis-ca-cert = ["serviceAccount:${google_service_account.run_api.email}"]
+  }
 }
 
 module "sql" {
