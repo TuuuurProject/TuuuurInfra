@@ -17,19 +17,23 @@ variable "app_name" {
 }
 
 variable "front_image" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "api_image" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "front_domain" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "api_domain" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "create_dns_records" {
@@ -40,6 +44,12 @@ variable "create_dns_records" {
 variable "dns_zone_name" {
   type    = string
   default = null
+}
+
+variable "ovh_domain" {
+  type        = string
+  description = "Nom de domaine OVH (ex: mondomaine.com)"
+  default     = null
 }
 
 variable "connector_cidr" {
@@ -72,6 +82,7 @@ variable "cloudsql_sqlserver_version" {
   default     = "SQLSERVER_2022_STANDARD"
   description = "Ex: SQLSERVER_2019_STANDARD, SQLSERVER_2022_STANDARD, etc."
 }
+
 variable "cloudsql_tier" {
   type    = string
   default = "db-custom-1-3840"
@@ -101,15 +112,18 @@ variable "db_user" {
   type    = string
   default = "appuser"
 }
+
 variable "db_password" {
   type      = string
   sensitive = true
+  default   = ""
 }
 
 variable "sql_root_password" {
   type        = string
   sensitive   = true
   description = "SQL Server root/admin password"
+  default     = ""
 }
 
 variable "sql_vm_zone" {
@@ -126,6 +140,7 @@ variable "sql_vm_boot_disk_gb" {
   type    = number
   default = 50
 }
+
 variable "sql_vm_image" {
   type        = string
   default     = "windows-sql-cloud/sql-std-2019-win-2022"
@@ -171,26 +186,31 @@ variable "jwt_key" {
   type        = string
   sensitive   = true
   description = "JWT signing key"
+  default     = ""
 }
 
 variable "google_client_id" {
   type        = string
   description = "Google OAuth Client ID"
+  default     = ""
 }
 
 variable "smtp_from_address" {
   type        = string
   description = "SMTP From email address"
+  default     = ""
 }
 
 variable "smtp_from_name" {
   type        = string
   description = "SMTP From display name"
+  default     = ""
 }
 
 variable "smtp_host" {
   type        = string
   description = "SMTP server address"
+  default     = ""
 }
 
 variable "smtp_port" {
@@ -202,12 +222,14 @@ variable "smtp_port" {
 variable "smtp_user" {
   type        = string
   description = "SMTP username"
+  default     = ""
 }
 
 variable "smtp_password" {
   type        = string
   sensitive   = true
   description = "SMTP password"
+  default     = ""
 }
 
 variable "run_db_migration" {
@@ -219,5 +241,5 @@ variable "run_db_migration" {
 variable "db_migration_image" {
   type        = string
   default     = ""
-  description = "Image Docker pour la migration SQL (DACPAC). Ex: europe-west9-docker.pkg.dev/tuuuur/tuuuur/database:prod"
+  description = "Image Docker pour la migration SQL (DACPAC). Ex: europe-west9-docker.pkg.dev/tuuuur/tuuuur/database:preprod"
 }

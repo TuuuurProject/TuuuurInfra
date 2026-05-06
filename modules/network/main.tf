@@ -30,4 +30,5 @@ resource "google_service_networking_connection" "psa_connection" {
   network                 = google_compute_network.vpc.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.psa_range[0].name]
+  deletion_policy         = "ABANDON"
 }

@@ -102,6 +102,18 @@ variable "secret_env_vars" {
   default = []
 }
 
+variable "secret_volumes" {
+  type = list(object({
+    name       = string
+    secret     = string
+    mount_path = string
+    file_path  = optional(string, "secret.pem")
+    version    = optional(string, "latest")
+  }))
+  default     = []
+  description = "Secret Manager volumes mounted into the Cloud Run container."
+}
+
 variable "vpc_connector_id" {
   type    = string
   default = null
