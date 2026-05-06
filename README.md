@@ -20,7 +20,7 @@ Infrastructure as Code pour déployer une plateforme web moderne sur **Google Cl
 ```
 Internet
   |
-  | HTTPS (front.example.com)           HTTPS (api.example.com)  
+  | HTTPS (front.example.com)           HTTPS (api.example.com)
   v                                      v
 [External HTTPS LB + TLS]            [External HTTPS LB + TLS]
   |  (Serverless NEG)                   |  (Serverless NEG)
@@ -49,6 +49,7 @@ Internet
 ```
 
 **Flux de données** :
+
 1. L'utilisateur accède au **Front** via le Load Balancer (HTTPS)
 2. Le Front appelle l'**API** via son Load Balancer (HTTPS)
 3. L'API accède à **Redis** et **SQL Server** en privé via VPC Access
@@ -63,10 +64,12 @@ Internet
 Tous les secrets et configurations sont stockés dans **GCP Secret Manager** :
 
 **Secrets par environnement** :
+
 - `webplat-preprod-*` (preprod)
 - `webplat-prod-*` (prod)
 
 **Types de secrets** :
+
 - **Sensibles** : db-password, sql-root-password, jwt-key, smtp-password, redis-auth, google-client-id
 - **Configuration** : region, front-image, api-image, front-domain, api-domain, db-migration-image, ovh-domain
 - **OVH** : ovh-application-key, ovh-application-secret, ovh-consumer-key
@@ -100,6 +103,7 @@ gcloud secrets list --project=tuuuur --filter="name~webplat-preprod"
 ```
 
 **Secrets gérés** :
+
 - `region` : Région GCP (ex: europe-west9)
 - `db-password` : Mot de passe de l'utilisateur SQL
 - `sql-root-password` : Mot de passe root SQL Server
@@ -115,6 +119,7 @@ gcloud secrets list --project=tuuuur --filter="name~webplat-preprod"
 ### Mise à jour des Secrets
 
 **Via gcloud CLI** :
+
 ```bash
 echo -n "nouvelle-valeur" | gcloud secrets versions add webplat-preprod-db-password \
   --project=tuuuur \
@@ -122,6 +127,7 @@ echo -n "nouvelle-valeur" | gcloud secrets versions add webplat-preprod-db-passw
 ```
 
 **Via le script** :
+
 ```bash
 # Éditer les valeurs dans le script
 vim scripts/push-secrets-to-gcp.sh
@@ -137,7 +143,7 @@ Utilisez le workflow `Update Terraform Images` dans l'UI GitHub pour mettre à j
 
 ## 📋 Pré-requis
 
-- **Terraform** >= 1.6.0
+- **Terraform** >= 1.13.0
 - **gcloud CLI** authentifié :
   ```bash
   gcloud auth application-default login
@@ -206,12 +212,14 @@ terraform apply -var="project_id=tuuuur" -var="env=preprod"
 Les certificats Google-Managed prennent **15-60 minutes** pour passer de `PROVISIONING` à `ACTIVE`.
 
 Surveiller l'état :
+
 ```bash
 gcloud compute ssl-certificates list --project=tuuuur \
   --filter="name~webplat-preprod"
 ```
 
 Une fois `ACTIVE`, vos sites seront accessibles :
+
 - Front : `https://preprod.tuuuur.florent-dubut.fr`
 - API : `https://preprod.tuuuur.api.florent-dubut.fr`
 
@@ -306,6 +314,7 @@ dns_zone_name      = ""     # nom de la zone Cloud DNS
 ## 🔒 Sécurité & Bonnes Pratiques
 
 ### Cloud Run
+
 - ✅ `ingress = INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` : Trafic uniquement via Load Balancer
 - ✅ `default_uri_disabled = true` : Désactive l'URL `*.run.app` par défaut
 - ✅ `invoker_iam_disabled = true` : IAM géré manuellement (allUsers via LB uniquement)
@@ -313,6 +322,7 @@ dns_zone_name      = ""     # nom de la zone Cloud DNS
 - ✅ Service Accounts dédiés pour Front et API
 
 ### Secrets
+
 - ✅ Tous les secrets dans **GCP Secret Manager**
 - ✅ Injection native Cloud Run (pas de variables d'environnement en clair)
 - ✅ Versioning automatique avec `version = "latest"`
@@ -320,6 +330,7 @@ dns_zone_name      = ""     # nom de la zone Cloud DNS
 - ✅ Séparation sensible/non-sensible via outputs (`secrets` vs `config`)
 
 ### Réseau
+
 - ✅ VPC dédiée avec subnets isolés (app + connector)
 - ✅ Private Services Access (PSA) pour Cloud SQL
 - ✅ Firewall rules minimales et strictes
@@ -327,6 +338,7 @@ dns_zone_name      = ""     # nom de la zone Cloud DNS
 - ✅ VPC Connector pour l'accès Cloud Run → Redis/SQL
 
 ### GitHub Actions
+
 - ✅ Seulement **4 secrets GitHub** requis :
   - `GCP_SA_KEY` : Service Account GCP
   - `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY` (optionnels)
@@ -382,27 +394,32 @@ gcloud run jobs executions list \
 ## 💰 Optimisation des Coûts
 
 ### Cloud Run
+
 - **min_instances = 0** : Scale to zero quand pas de trafic
 - **cpu_idle = true** : CPU throttling quand idle
 - **Autoscaling** : Adapte automatiquement selon la charge
 - **Concurrency** : Plusieurs requêtes par instance (Front: 80, API: 40)
 
 ### Redis
+
 - **Tier BASIC** : Pas de réplication (dev/preprod)
 - **Tier STANDARD_HA** : Haute disponibilité (prod)
 - **Taille minimale** : 1 GB pour commencer
 
 ### SQL Server
+
 - **Cloud SQL** : Managé, robuste, mais coûteux
   - `db-custom-1-3840` : 1 vCPU, 3.75 GB RAM (~200€/mois)
   - **Optimisation** : Possibilité d'arrêter hors horaires de dev
 - **Haute disponibilité** : Désactivée en dev/preprod
 
 ### Load Balancers
+
 - **Coût fixe** : ~18€/mois par LB (Front + API = ~36€/mois)
 - **Trafic** : Premier 1 TB gratuit par mois en Europe
 
 ### Réseau
+
 - **VPC** : Gratuit
 - **VPC Connector** : e2-micro instances (~8€/mois)
 - **Private Services Access** : Gratuit
@@ -457,6 +474,7 @@ terraform output
 Voir [.github/GITHUB_SECRETS.md](.github/GITHUB_SECRETS.md) pour les détails.
 
 **Secrets requis** :
+
 - `GCP_SA_KEY` : JSON du service account GCP
 - `OVH_APPLICATION_KEY` : (optionnel) Pour OVH DNS
 - `OVH_APPLICATION_SECRET` : (optionnel) Pour OVH DNS
@@ -557,6 +575,7 @@ gcloud compute ssl-certificates describe \
 **Cause** : Le DNS ne pointe pas vers la bonne IP ou la propagation DNS n'est pas terminée.
 
 **Solution** :
+
 ```bash
 # Vérifier que le DNS pointe vers la bonne IP
 dig +short preprod.tuuuur.florent-dubut.fr
@@ -572,6 +591,7 @@ terraform output front_lb_ip
 **Cause** : Secrets manquants ou versions détruites.
 
 **Solution** :
+
 ```bash
 # Vérifier que les secrets existent
 gcloud secrets list --project=tuuuur --filter="name~webplat-preprod"
@@ -590,6 +610,7 @@ echo -n "valeur" | gcloud secrets versions add webplat-preprod-db-password \
 **Cause** : Credentials OVH invalides ou manquants.
 
 **Solution** :
+
 ```bash
 # Vérifier les variables d'environnement
 echo $OVH_APPLICATION_KEY
@@ -604,6 +625,7 @@ echo $OVH_CONSUMER_KEY
 **Cause** : VPC Access Connector mal configuré ou réseau incorrect.
 
 **Solution** :
+
 ```bash
 # Vérifier que le connector existe
 gcloud compute networks vpc-access connectors list \
@@ -622,6 +644,7 @@ gcloud run services describe webplat-preprod-api \
 **Cause** : Service networking connection ou permissions.
 
 **Solution** :
+
 ```bash
 # Vérifier que Cloud SQL a une IP privée
 gcloud sql instances describe webplat-preprod-sql \
@@ -650,6 +673,7 @@ terraform destroy -var="project_id=tuuuur" -var="env=preprod"
 ```
 
 ⚠️ **Attention** : Cela supprimera **toutes** les ressources :
+
 - Cloud Run services
 - Load Balancers
 - Cloud SQL (et toutes les données !)
@@ -680,6 +704,7 @@ terraform destroy -var="project_id=tuuuur" -var="env=preprod"
 ## 📝 Changelog
 
 ### v2.0.0 - Migration GCP Secret Manager (2026-02-10)
+
 - ✅ Migration complète vers GCP Secret Manager
 - ✅ Suppression du module bastion (non utilisé)
 - ✅ Ajout du module `secrets_datasource` pour lire les secrets
@@ -690,6 +715,7 @@ terraform destroy -var="project_id=tuuuur" -var="env=preprod"
 - ✅ Documentation complète des workflows et secrets
 
 ### v1.0.0 - Version initiale
+
 - ✅ Cloud Run Front + API avec Load Balancers
 - ✅ Cloud SQL SQL Server avec migration automatique
 - ✅ Memorystore Redis
