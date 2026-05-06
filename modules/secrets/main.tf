@@ -6,6 +6,10 @@ resource "google_secret_manager_secret" "secrets" {
   replication {
     auto {}
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_secret_manager_secret_version" "versions" {

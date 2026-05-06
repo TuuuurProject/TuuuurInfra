@@ -53,22 +53,10 @@ module "vpc_connector" {
   max_instances = 3
 }
 
-module "secrets" {
-  source      = "../../modules/secrets"
+module "secrets_access" {
+  source      = "../../modules/secrets_access"
   project_id  = var.project_id
   name_prefix = local.prefix
-  labels      = local.labels
-
-  secrets = {
-    db-password = { labels = local.labels }
-    redis-auth  = { labels = local.labels }
-  }
-
-  create_versions = true
-  secret_values = {
-    db-password = var.db_password
-    redis-auth  = var.redis_auth ? module.redis.auth_string : "unused"
-  }
 
   accessors = {
     db-password = ["serviceAccount:${google_service_account.run_api.email}"]
@@ -85,16 +73,22 @@ module "redis" {
 
   tier                    = var.redis_tier
   memory_size_gb          = var.redis_memory_gb
-  auth_enabled            = var.redis_auth
+  auth_enabled            = false
   transit_encryption_mode = "DISABLED"
   labels                  = local.labels
 
+  connect_mode      = "PRIVATE_SERVICE_ACCESS"
+  reserved_ip_range = module.network.psa_range_name
+  display_name      = "${local.prefix} Redis Cache"
+
   service_networking_connection = module.network.service_networking_connection
+
+  depends_on = [module.network]
 }
 
 module "sql" {
   source      = "../../modules/sqlserver"
-  depends_on  = [module.network]
+  depends_on  = [module.network, module.vpc_connector]
   project_id  = var.project_id
   name_prefix = local.prefix
   region      = var.region
@@ -177,7 +171,7 @@ module "cloudrun_api" {
   env_vars = {
     "ConnectionStrings__Tuuuur" = "Server=${module.sql.private_ip_address},1433;Database=${var.db_name};User Id=${var.db_user};Password=${var.db_password};TrustServerCertificate=True;"
 
-    "ConnectionStrings__Redis" = var.redis_auth ? "${module.redis.host}:${module.redis.port},password=${var.db_password}" : "${module.redis.host}:${module.redis.port}"
+    "ConnectionStrings__Redis" = var.redis_auth ? "${module.redis.host}:${module.redis.port},password=${var.db_password},abortConnect=false" : "${module.redis.host}:${module.redis.port},abortConnect=false"
 
     "JwtSettings__Key" = var.jwt_key
 
@@ -195,12 +189,12 @@ module "cloudrun_api" {
     {
       name    = "DB_PASSWORD"
       secret  = module.secrets.secret_ids["db-password"]
-      version = "1"
+      version = "latest"
     },
     {
       name    = "REDIS_AUTH"
       secret  = module.secrets.secret_ids["redis-auth"]
-      version = "1"
+      version = "latest"
     }
   ]
 }
