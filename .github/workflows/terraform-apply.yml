@@ -1,0 +1,140 @@
+name: Terraform Apply
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: "Environment to deploy (dev, preprod, prod)"
+      project_id:
+        required: true
+        type: string
+        description: "GCP Project ID"
+      env_name:
+        required: true
+        type: string
+        description: "Environment name"
+      terraform_version:
+        required: false
+        type: string
+        default: "1.13.0"
+        description: "Terraform version to use"
+    secrets:
+      GCP_SA_KEY:
+        required: true
+      OVH_APPLICATION_KEY:
+        required: false
+      OVH_APPLICATION_SECRET:
+        required: false
+      OVH_CONSUMER_KEY:
+        required: false
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    defaults:
+      run:
+        working-directory: environments/${{ inputs.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -reconfigure
+
+      - name: Check Backend Location
+        run: |
+          echo "=== Checking Terraform Backend ==="
+          echo "Checking for local state file..."
+          if [ -f .terraform/terraform.tfstate ]; then
+            echo "❌ PROBLEM: Found local backend state file .terraform/terraform.tfstate"
+            echo "Backend is using LOCAL state, NOT GCS!"
+            cat .terraform/terraform.tfstate | head -20
+            exit 1
+          else
+            echo "✓ No local backend state file found"
+          fi
+          echo ""
+          echo "Checking backend config..."
+          terraform backend config -json 2>/dev/null || echo "Could not read backend config"
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        env:
+          OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+          OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
+          TF_PROJECT_ID: ${{ inputs.project_id }}
+          TF_ENV_NAME: ${{ inputs.env_name }}
+        run: |
+          terraform plan -no-color -input=false \
+            -var="project_id=${TF_PROJECT_ID}" \
+            -var="env=${TF_ENV_NAME}" \
+            -out=tfplan
+        continue-on-error: false
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ inputs.environment }}
+          path: environments/${{ inputs.environment }}/tfplan
+          retention-days: 5
+
+      - name: Terraform Apply
+        id: apply
+        env:
+          OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+          OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
+        run: |
+          terraform apply -auto-approve -input=false tfplan
+
+      - name: Verify tfstate in GCS
+        env:
+          TF_ENV_NAME: ${{ inputs.env_name }}
+        run: |
+          echo "=== Verifying tfstate location ==="
+          echo ""
+          echo "Looking in GCS bucket..."
+          gsutil ls -r gs://tuuuur-terraform-state/terraform/state/${TF_ENV_NAME}/ 2>/dev/null && echo "✓ Found files in GCS" || echo "❌ No files in GCS"
+          echo ""
+          echo "Full bucket contents:"
+          gsutil ls -r gs://tuuuur-terraform-state/ 2>/dev/null || echo "Bucket empty or not accessible"
+
+      - name: Terraform Output
+        id: output
+        run: terraform output -json > terraform-outputs.json
+
+      - name: Upload Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs-${{ inputs.environment }}
+          path: environments/${{ inputs.environment }}/terraform-outputs.json
+          retention-days: 30

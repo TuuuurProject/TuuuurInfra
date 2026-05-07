@@ -1,0 +1,110 @@
+name: Terraform Plan (PR)
+
+on:
+  pull_request:
+    branches:
+      - release
+      - master
+    paths:
+      - "environments/**"
+      - "modules/**"
+      - ".github/workflows/**"
+
+jobs:
+  detect-environments:
+    runs-on: ubuntu-latest
+    outputs:
+      environments: ${{ steps.detect.outputs.environments }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed environments
+        id: detect
+        run: |
+          # Get changed files
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          BASE_REF="${{ github.base_ref }}"
+
+          ENVS="[]"
+
+          # For PR to release: test dev and preprod only
+          # For PR to master: test prod only
+          if [ "$BASE_REF" = "release" ]; then
+            if echo "$CHANGED_FILES" | grep -q "environments/preprod\|modules/"; then
+              ENVS=$(echo $ENVS | jq -c '. + ["preprod"]')
+            fi
+          elif [ "$BASE_REF" = "master" ]; then
+            if echo "$CHANGED_FILES" | grep -q "environments/prod\|modules/"; then
+              ENVS=$(echo $ENVS | jq -c '. + ["prod"]')
+            fi
+          fi
+
+          echo "environments=$ENVS" >> $GITHUB_OUTPUT
+          echo "Detected environments for $BASE_REF: $ENVS"
+
+  terraform-plan:
+    needs: detect-environments
+    if: needs.detect-environments.outputs.environments != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.detect-environments.outputs.environments) }}
+
+    defaults:
+      run:
+        working-directory: environments/${{ matrix.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.13.0"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        env:
+          # OVH DNS credentials (read from secrets)
+          OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+          OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
+        run: |
+          # Set project_id based on environment
+          if [ "${{ matrix.environment }}" = "preprod" ]; then
+            PROJECT_ID="tuuuur"
+            ENV_NAME="preprod"
+          elif [ "${{ matrix.environment }}" = "prod" ]; then
+            PROJECT_ID="tuuuur"
+            ENV_NAME="prod"
+          else
+            PROJECT_ID="tuuuur"
+            ENV_NAME="dev"
+          fi
+
+          terraform plan -no-color -input=false \
+            -var="project_id=$PROJECT_ID" \
+            -var="env=$ENV_NAME"
+        continue-on-error: true
