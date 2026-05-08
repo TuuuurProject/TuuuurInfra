@@ -65,22 +65,6 @@ jobs:
         id: init
         run: terraform init -reconfigure
 
-      - name: Check Backend Location
-        run: |
-          echo "=== Checking Terraform Backend ==="
-          echo "Checking for local state file..."
-          if [ -f .terraform/terraform.tfstate ]; then
-            echo "❌ PROBLEM: Found local backend state file .terraform/terraform.tfstate"
-            echo "Backend is using LOCAL state, NOT GCS!"
-            cat .terraform/terraform.tfstate | head -20
-            exit 1
-          else
-            echo "✓ No local backend state file found"
-          fi
-          echo ""
-          echo "Checking backend config..."
-          terraform backend config -json 2>/dev/null || echo "Could not read backend config"
-
       - name: Terraform Validate
         id: validate
         run: terraform validate -no-color
