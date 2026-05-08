@@ -35,7 +35,6 @@ override.tf.json
 terraform.rc
 
 # Ignore backend configuration files (may contain sensitive data)
-backend.tf
 !backend.tf.example
 
 # Ignore lock files
