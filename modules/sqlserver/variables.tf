@@ -33,7 +33,7 @@ variable "network_self_link" {
 
 variable "database_version" {
   type    = string
-  default = "SQLSERVER_2022_STANDARD"
+  default = "SQLSERVER_2025_EXPRESS"
 }
 
 variable "tier" {
