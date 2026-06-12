@@ -78,9 +78,8 @@ variable "sql_mode" {
 }
 
 variable "cloudsql_sqlserver_version" {
-  type        = string
-  default     = "SQLSERVER_2022_STANDARD"
-  description = "Ex: SQLSERVER_2019_STANDARD, SQLSERVER_2022_STANDARD, etc."
+  type    = string
+  default = "SQLSERVER_2025_EXPRESS"
 }
 
 variable "cloudsql_tier" {
@@ -143,8 +142,8 @@ variable "sql_vm_boot_disk_gb" {
 
 variable "sql_vm_image" {
   type        = string
-  default     = "windows-sql-cloud/sql-std-2019-win-2022"
-  description = "Voir doc Compute Engine SQL Server; ex: windows-sql-cloud/sql-std-2019-win-2022"
+  default     = "windows-sql-cloud/sql-std-2025-win-2022"
+  description = "Voir doc Compute Engine SQL Server; ex: windows-sql-cloud/sql-std-2025-win-2022"
 }
 
 variable "front_min_instances" {
