@@ -6,9 +6,20 @@ locals {
   })
 
   docker_registry    = "europe-west9-docker.pkg.dev/tuuuur/tuuuur"
-  front_image        = "${local.docker_registry}/web:${data.google_secret_manager_secret_version.web_git_sha.secret_data}"
-  api_image          = "${local.docker_registry}/api:${data.google_secret_manager_secret_version.api_git_sha.secret_data}"
-  db_migration_image = "${local.docker_registry}/database:${data.google_secret_manager_secret_version.database_git_sha.secret_data}"
+
+  raw_web_tag = trimspace(data.google_secret_manager_secret_version.web_git_sha.secret_data)
+  web_env_prefix = var.env == "prod" ? "production" : var.env
+  web_tag = length(regexall("^(prod|preprod|production|dev)", local.raw_web_tag)) > 0 ? local.raw_web_tag : "${local.web_env_prefix}-${local.raw_web_tag}"
+
+  raw_api_tag = trimspace(data.google_secret_manager_secret_version.api_git_sha.secret_data)
+  api_tag = length(regexall("^(prod|preprod|production|dev)", local.raw_api_tag)) > 0 ? local.raw_api_tag : "${var.env}-${local.raw_api_tag}"
+
+  raw_db_tag = trimspace(data.google_secret_manager_secret_version.database_git_sha.secret_data)
+  db_tag = length(regexall("^(prod|preprod|production|dev)", local.raw_db_tag)) > 0 ? local.raw_db_tag : "${var.env}-${local.raw_db_tag}"
+
+  front_image        = "${local.docker_registry}/web:${local.web_tag}"
+  api_image          = "${local.docker_registry}/api:${local.api_tag}"
+  db_migration_image = "${local.docker_registry}/database:${local.db_tag}"
 }
 
 data "google_secret_manager_secret_version" "web_git_sha" {
