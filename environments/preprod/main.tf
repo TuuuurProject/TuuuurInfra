@@ -206,6 +206,8 @@ module "cloudrun_front" {
   min_instances = var.front_min_instances
   max_instances = var.front_max_instances
   concurrency   = var.front_concurrency
+
+  redeploy_trigger = timestamp()
 }
 
 resource "google_cloud_run_v2_service_iam_member" "front_invoker" {
@@ -295,6 +297,8 @@ module "cloudrun_api" {
       version    = "latest"
     }
   ]
+
+  redeploy_trigger = timestamp()
 }
 
 module "lb_front" {
