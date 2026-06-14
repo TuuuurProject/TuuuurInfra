@@ -15,6 +15,10 @@ resource "google_cloud_run_v2_service" "service" {
   template {
     service_account = var.service_account_email
 
+    annotations = var.redeploy_trigger != "" ? {
+      "redeploy-trigger" = var.redeploy_trigger
+    } : {}
+
     timeout                          = "${var.timeout_seconds}s"
     max_instance_request_concurrency = var.concurrency
 
