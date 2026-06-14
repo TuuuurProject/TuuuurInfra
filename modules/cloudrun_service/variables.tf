@@ -123,3 +123,9 @@ variable "vpc_egress" {
   type    = string
   default = "PRIVATE_RANGES_ONLY"
 }
+
+variable "redeploy_trigger" {
+  type        = string
+  default     = ""
+  description = "A value that, when changed, forces a redeployment (e.g. timestamp())."
+}
